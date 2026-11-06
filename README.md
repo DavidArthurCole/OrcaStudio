@@ -152,6 +152,7 @@ rm -rf "$HOME/Library/Application Support/BambuStudio_OrcaSlicer/slicer-linux-ru
 * Fixed the issue that appears when using BMCU with A1 / A1-mini printers on firmware `01.08.01.00` and `01.08.00.00`.
 * HMS notifications remain dismissible and never use modal retry-failure dialogs; BMCU print retries can be started again without restarting OrcaStudio.
 * Fixed the known integration issues from this fork.
+* Bambu resource and plugin sync: see [docs/bambu-sync.md](docs/bambu-sync.md).
 
 ## **Special thanks**
 

@@ -4,7 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 
-DEFAULT_ABI_VERSION = "02.08.01"
+DEFAULT_ABI_VERSION = "02.08.04"
 MANIFEST_NAME = "linux_component_manifest.json"
 
 

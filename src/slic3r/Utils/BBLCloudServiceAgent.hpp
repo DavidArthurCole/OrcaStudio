@@ -81,6 +81,10 @@ public:
     int get_user_print_info(unsigned int* http_code, std::string* http_body) override;
     int get_user_tasks(TaskQueryParams params, std::string* http_body) override;
     int get_printer_firmware(std::string dev_id, unsigned* http_code, std::string* http_body) override;
+    int sync_slot_mappings(SlotMappingsSyncParams params, std::string* http_body) override;
+    int get_soft_match_pending(SoftMatchPendingParams params, std::string* http_body) override;
+    int post_soft_match_pending(SoftMatchPendingActionParams params, std::string* http_body) override;
+    int post_device_region(DeviceRegionParams params, std::string* http_body) override;
     int get_task_plate_index(std::string task_id, int* plate_index) override;
     int get_user_info(int* identifier) override;
     int get_subtask_info(std::string subtask_id, std::string* task_json, unsigned int* http_code, std::string* http_body) override;

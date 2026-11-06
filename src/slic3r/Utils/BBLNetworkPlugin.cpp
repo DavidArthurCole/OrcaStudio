@@ -45,7 +45,8 @@ bool runtime_component_preflight(const boost::filesystem::path& component_folder
         Slic3r::SlicerLinuxRuntime::linux_component_library_name(),
         Slic3r::SlicerLinuxRuntime::linux_source_library_name(),
         "ca-certificates.crt",
-        "slicer_base64.cer"
+        "slicer_base64.cer",
+        "printer.cer"
     };
 
     for (const auto& file_name : common_required_files) {
@@ -1132,6 +1133,10 @@ void BBLNetworkPlugin::load_all_function_pointers()
     m_get_mw_user_4ulist = reinterpret_cast<func_get_mw_user_4ulist>(get_function("bambu_network_get_mw_user_4ulist"));
     m_get_hms_snapshot = reinterpret_cast<func_get_hms_snapshot>(get_function("bambu_network_get_hms_snapshot"));
     m_sync_ams_filaments = reinterpret_cast<func_sync_ams_filaments>(get_function("bambu_network_sync_ams_filaments"));
+    m_sync_slot_mappings = reinterpret_cast<func_sync_slot_mappings>(get_function("bambu_network_sync_slot_mappings"));
+    m_get_soft_match_pending = reinterpret_cast<func_get_soft_match_pending>(get_function("bambu_network_get_soft_match_pending"));
+    m_post_soft_match_pending = reinterpret_cast<func_post_soft_match_pending>(get_function("bambu_network_post_soft_match_pending"));
+    m_post_device_region = reinterpret_cast<func_post_device_region>(get_function("bambu_network_post_device_region"));
     m_linux_auth_start = reinterpret_cast<func_linux_auth_start>(get_function("slicer_linux_runtime_auth_start"));
     m_linux_auth_start_v2 = reinterpret_cast<func_linux_auth_start_v2>(get_function("slicer_linux_runtime_auth_start_v2"));
     m_linux_auth_status = reinterpret_cast<func_linux_auth_status>(get_function("slicer_linux_runtime_auth_status"));
@@ -1254,6 +1259,10 @@ void BBLNetworkPlugin::clear_all_function_pointers()
     m_get_mw_user_4ulist = nullptr;
     m_get_hms_snapshot = nullptr;
     m_sync_ams_filaments = nullptr;
+    m_sync_slot_mappings = nullptr;
+    m_get_soft_match_pending = nullptr;
+    m_post_soft_match_pending = nullptr;
+    m_post_device_region = nullptr;
     m_linux_auth_start = nullptr;
     m_linux_auth_start_v2 = nullptr;
     m_linux_auth_status = nullptr;

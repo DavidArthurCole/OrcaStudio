@@ -1038,6 +1038,7 @@ BBL::PrintParams print_params_from_json(const nlohmann::json& j)
     p.task_ext_change_assist = j.value("task_ext_change_assist", false);
     p.try_emmc_print = j.value("try_emmc_print", false);
     p.svc_context = j.value("svc_context", std::string());
+    p.queue_plate_id = j.value("queue_plate_id", std::string());
     translate_print_params_paths(p);
     return p;
 }
@@ -3261,6 +3262,76 @@ nlohmann::json LinuxRuntimeHost::handle(const std::string& method, const nlohman
 
         std::string http_body;
         const int ret = f(a, std::move(params), &http_body);
+        return {{"ok", true}, {"value", ret}, {"http_body", http_body}};
+    }
+    if (method == "net.sync_slot_mappings") {
+        auto f = net<int (*)(void*, SlotMappingsSyncParams, std::string*)>("bambu_network_sync_slot_mappings");
+        auto a = lookup_agent();
+        if (!f || !a)
+            return not_supported(method);
+
+        SlotMappingsSyncParams params;
+        params.devId = payload.value("dev_id", std::string());
+        for (const auto& value : payload.value("mappings", nlohmann::json::array())) {
+            if (!value.is_object())
+                continue;
+            SlotMappingItem item;
+            item.amsSn = value.value("amsSn", std::string());
+            item.slotId = value.value("slotId", std::string());
+            item.spoolId = value.value("spoolId", 0);
+            item.rfid = value.value("rfid", std::string());
+            item.amsId = value.value("amsId", 0);
+            item.amsType = value.value("amsType", 0);
+            params.mappings.push_back(std::move(item));
+        }
+
+        std::string http_body;
+        const int ret = f(a, std::move(params), &http_body);
+        return {{"ok", true}, {"value", ret}, {"http_body", http_body}};
+    }
+    if (method == "net.get_soft_match_pending") {
+        auto f = net<int (*)(void*, SoftMatchPendingParams, std::string*)>("bambu_network_get_soft_match_pending");
+        auto a = lookup_agent();
+        if (!f || !a)
+            return not_supported(method);
+
+        SoftMatchPendingParams params;
+        params.devId = payload.value("dev_id", std::string());
+        params.amsSn = payload.value("amsSn", std::string());
+
+        std::string http_body;
+        const int ret = f(a, params, &http_body);
+        return {{"ok", true}, {"value", ret}, {"http_body", http_body}};
+    }
+    if (method == "net.post_soft_match_pending") {
+        auto f = net<int (*)(void*, SoftMatchPendingActionParams, std::string*)>("bambu_network_post_soft_match_pending");
+        auto a = lookup_agent();
+        if (!f || !a)
+            return not_supported(method);
+
+        SoftMatchPendingActionParams params;
+        params.action = payload.value("action", std::string());
+        params.spoolId = payload.value("spoolId", 0);
+        params.targetSpoolId = payload.value("targetSpoolId", 0);
+
+        std::string http_body;
+        const int ret = f(a, params, &http_body);
+        return {{"ok", true}, {"value", ret}, {"http_body", http_body}};
+    }
+    if (method == "net.post_device_region") {
+        auto f = net<int (*)(void*, DeviceRegionParams, std::string*)>("bambu_network_post_device_region");
+        auto a = lookup_agent();
+        if (!f || !a)
+            return not_supported(method);
+
+        DeviceRegionParams params;
+        params.DeviceId = payload.value("DeviceId", std::string());
+        params.ClientType = payload.value("ClientType", std::string());
+        params.country = payload.value("country", std::string());
+        params.XClientCountry = payload.value("XClientCountry", std::string());
+
+        std::string http_body;
+        const int ret = f(a, params, &http_body);
         return {{"ok", true}, {"value", ret}, {"http_body", http_body}};
     }
     if (method == "net.get_printer_firmware") { auto f = net<int (*)(void*, std::string, unsigned*, std::string*)>("bambu_network_get_printer_firmware"); auto a = lookup_agent(); if (!f || !a) return not_supported(method); unsigned http_code = 0; std::string http_body; const int ret = f(a, payload.value("dev_id", std::string()), &http_code, &http_body); return {{"ok", true}, {"value", ret}, {"http_code", http_code}, {"http_body", http_body}}; }

@@ -476,6 +476,34 @@ int NetworkAgent::get_printer_firmware(std::string dev_id, unsigned* http_code, 
     return -1;
 }
 
+int NetworkAgent::sync_slot_mappings(SlotMappingsSyncParams params, std::string* http_body, const std::string& provider) {
+    const auto cloud_agent = get_cloud_agent(provider);
+    if (cloud_agent)
+        return cloud_agent->sync_slot_mappings(params, http_body);
+    return -1;
+}
+
+int NetworkAgent::get_soft_match_pending(SoftMatchPendingParams params, std::string* http_body, const std::string& provider) {
+    const auto cloud_agent = get_cloud_agent(provider);
+    if (cloud_agent)
+        return cloud_agent->get_soft_match_pending(params, http_body);
+    return -1;
+}
+
+int NetworkAgent::post_soft_match_pending(SoftMatchPendingActionParams params, std::string* http_body, const std::string& provider) {
+    const auto cloud_agent = get_cloud_agent(provider);
+    if (cloud_agent)
+        return cloud_agent->post_soft_match_pending(params, http_body);
+    return -1;
+}
+
+int NetworkAgent::post_device_region(DeviceRegionParams params, std::string* http_body, const std::string& provider) {
+    const auto cloud_agent = get_cloud_agent(provider);
+    if (cloud_agent)
+        return cloud_agent->post_device_region(params, http_body);
+    return -1;
+}
+
 int NetworkAgent::get_task_plate_index(std::string task_id, int* plate_index, const std::string& provider)
 {
     const auto cloud_agent = get_cloud_agent(provider);

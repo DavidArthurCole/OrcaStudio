@@ -51,7 +51,8 @@ inline nlohmann::json to_json(const BBL::PrintParams& p)
         {"extruder_cali_manual_mode", p.extruder_cali_manual_mode},
         {"task_ext_change_assist", p.task_ext_change_assist},
         {"try_emmc_print", p.try_emmc_print},
-        {"svc_context", p.svc_context}
+        {"svc_context", p.svc_context},
+        {"queue_plate_id", p.queue_plate_id}
     };
 }
 
@@ -102,6 +103,7 @@ inline BBL::PrintParams print_params_from_json(const nlohmann::json& j)
     p.task_ext_change_assist = j.value("task_ext_change_assist", false);
     p.try_emmc_print = j.value("try_emmc_print", false);
     p.svc_context = j.value("svc_context", std::string());
+    p.queue_plate_id = j.value("queue_plate_id", std::string());
     return p;
 }
 

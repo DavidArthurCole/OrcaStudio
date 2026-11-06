@@ -1053,6 +1053,35 @@ SLICER_LINUX_RUNTIME_EXPORT int bambu_network_sync_ams_filaments(void* agent, Am
         *http_body = j.value("http_body", std::string());
     return j.value("value", 0);
 }
+SLICER_LINUX_RUNTIME_EXPORT int bambu_network_sync_slot_mappings(void* agent, SlotMappingsSyncParams params, std::string* http_body) {
+    auto* a = require_agent(agent);
+    if (!a)
+        return invalid_handle();
+
+    nlohmann::json mappings = nlohmann::json::array();
+    for (const auto& item : params.mappings) {
+        mappings.push_back({
+            {"amsSn", item.amsSn},
+            {"slotId", item.slotId},
+            {"spoolId", item.spoolId},
+            {"rfid", item.rfid},
+            {"amsId", item.amsId},
+            {"amsType", item.amsType}
+        });
+    }
+
+    const auto j = ok_or_error(RpcClient::instance().invoke_json("net.sync_slot_mappings", {
+        {"agent", agent_id(a)},
+        {"dev_id", params.devId},
+        {"mappings", std::move(mappings)}
+    }));
+    if (http_body)
+        *http_body = j.value("http_body", std::string());
+    return j.value("value", 0);
+}
+SLICER_LINUX_RUNTIME_EXPORT int bambu_network_get_soft_match_pending(void* agent, SoftMatchPendingParams params, std::string* http_body) { auto* a = require_agent(agent); if (!a) return invalid_handle(); const auto j = ok_or_error(RpcClient::instance().invoke_json("net.get_soft_match_pending", {{"agent", agent_id(a)}, {"dev_id", params.devId}, {"amsSn", params.amsSn}})); if (http_body) *http_body = j.value("http_body", std::string()); return j.value("value", 0); }
+SLICER_LINUX_RUNTIME_EXPORT int bambu_network_post_soft_match_pending(void* agent, SoftMatchPendingActionParams params, std::string* http_body) { auto* a = require_agent(agent); if (!a) return invalid_handle(); const auto j = ok_or_error(RpcClient::instance().invoke_json("net.post_soft_match_pending", {{"agent", agent_id(a)}, {"action", params.action}, {"spoolId", params.spoolId}, {"targetSpoolId", params.targetSpoolId}})); if (http_body) *http_body = j.value("http_body", std::string()); return j.value("value", 0); }
+SLICER_LINUX_RUNTIME_EXPORT int bambu_network_post_device_region(void* agent, DeviceRegionParams params, std::string* http_body) { auto* a = require_agent(agent); if (!a) return invalid_handle(); const auto j = ok_or_error(RpcClient::instance().invoke_json("net.post_device_region", {{"agent", agent_id(a)}, {"DeviceId", params.DeviceId}, {"ClientType", params.ClientType}, {"country", params.country}, {"XClientCountry", params.XClientCountry}})); if (http_body) *http_body = j.value("http_body", std::string()); return j.value("value", 0); }
 SLICER_LINUX_RUNTIME_EXPORT int bambu_network_get_printer_firmware(void* agent, std::string dev_id, unsigned* http_code, std::string* http_body) { auto* a = require_agent(agent); if (!a) return invalid_handle(); const auto j = ok_or_error(RpcClient::instance().invoke_json("net.get_printer_firmware", {{"agent", agent_id(a)}, {"dev_id", dev_id}})); if (http_code) *http_code = j.value("http_code", 0u); if (http_body) *http_body = j.value("http_body", std::string()); return j.value("value", 0); }
 SLICER_LINUX_RUNTIME_EXPORT int bambu_network_get_task_plate_index(void* agent, std::string task_id, int* plate_index) { auto* a = require_agent(agent); if (!a) return invalid_handle(); const auto j = ok_or_error(RpcClient::instance().invoke_json("net.get_task_plate_index", {{"agent", agent_id(a)}, {"task_id", task_id}})); if (plate_index) *plate_index = j.value("plate_index", -1); return j.value("value", 0); }
 SLICER_LINUX_RUNTIME_EXPORT int bambu_network_get_user_info(void* agent, int* identifier) { auto* a = require_agent(agent); if (!a) return invalid_handle(); const auto j = ok_or_error(RpcClient::instance().invoke_json("net.get_user_info", {{"agent", agent_id(a)}})); if (identifier) *identifier = j.value("identifier", 0); return j.value("value", 0); }

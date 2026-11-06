@@ -259,6 +259,11 @@ if not exist "%HOST_RUNTIME_DIR%\slicer_base64.cer" (
     exit /b 1
 )
 
+if not exist "%HOST_RUNTIME_DIR%\printer.cer" (
+    echo Missing printer certificate for linux Linux runtime: %HOST_RUNTIME_DIR%\printer.cer
+    exit /b 1
+)
+
 echo Linux runtime preflight OK
 echo   host runtime: %HOST_RUNTIME_DIR%
 echo   rootfs tar:   %SLICER_LINUX_RUNTIME_ROOTFS_TAR%
@@ -302,6 +307,11 @@ if not exist "%HOST_RUNTIME_DIR%\ca-certificates.crt" (
 
 if not exist "%HOST_RUNTIME_DIR%\slicer_base64.cer" (
     echo Missing slicer certificate for linux Linux runtime: %HOST_RUNTIME_DIR%\slicer_base64.cer
+    exit /b 1
+)
+
+if not exist "%HOST_RUNTIME_DIR%\printer.cer" (
+    echo Missing printer certificate for linux Linux runtime: %HOST_RUNTIME_DIR%\printer.cer
     exit /b 1
 )
 

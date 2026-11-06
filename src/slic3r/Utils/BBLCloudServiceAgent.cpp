@@ -590,6 +590,50 @@ int BBLCloudServiceAgent::get_printer_firmware(std::string dev_id, unsigned* htt
     return -1;
 }
 
+int BBLCloudServiceAgent::sync_slot_mappings(SlotMappingsSyncParams params, std::string* http_body) {
+    auto& plugin = BBLNetworkPlugin::instance();
+    auto module_lock = BBLNetworkPlugin::lock_module_for_call();
+    auto agent = plugin.get_agent();
+    auto func = plugin.get_sync_slot_mappings();
+    if (func && agent) {
+        return func(agent, params, http_body);
+    }
+    return -1;
+}
+
+int BBLCloudServiceAgent::get_soft_match_pending(SoftMatchPendingParams params, std::string* http_body) {
+    auto& plugin = BBLNetworkPlugin::instance();
+    auto module_lock = BBLNetworkPlugin::lock_module_for_call();
+    auto agent = plugin.get_agent();
+    auto func = plugin.get_get_soft_match_pending();
+    if (func && agent) {
+        return func(agent, params, http_body);
+    }
+    return -1;
+}
+
+int BBLCloudServiceAgent::post_soft_match_pending(SoftMatchPendingActionParams params, std::string* http_body) {
+    auto& plugin = BBLNetworkPlugin::instance();
+    auto module_lock = BBLNetworkPlugin::lock_module_for_call();
+    auto agent = plugin.get_agent();
+    auto func = plugin.get_post_soft_match_pending();
+    if (func && agent) {
+        return func(agent, params, http_body);
+    }
+    return -1;
+}
+
+int BBLCloudServiceAgent::post_device_region(DeviceRegionParams params, std::string* http_body) {
+    auto& plugin = BBLNetworkPlugin::instance();
+    auto module_lock = BBLNetworkPlugin::lock_module_for_call();
+    auto agent = plugin.get_agent();
+    auto func = plugin.get_post_device_region();
+    if (func && agent) {
+        return func(agent, params, http_body);
+    }
+    return -1;
+}
+
 int BBLCloudServiceAgent::get_task_plate_index(std::string task_id, int* plate_index)
 {
     auto& plugin = BBLNetworkPlugin::instance();

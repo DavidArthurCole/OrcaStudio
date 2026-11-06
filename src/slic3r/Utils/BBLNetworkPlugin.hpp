@@ -162,6 +162,10 @@ typedef int (*func_update_filament_spool)(void *agent, std::string spool_id, std
 typedef int (*func_delete_filament_spools)(void *agent, FilamentDeleteParams params, std::string* http_body);
 typedef int (*func_get_filament_config)(void *agent, std::string* http_body);
 typedef int (*func_sync_ams_filaments)(void *agent, AmsSyncParams params, std::string* http_body);
+typedef int (*func_sync_slot_mappings)(void *agent, SlotMappingsSyncParams params, std::string* http_body);
+typedef int (*func_get_soft_match_pending)(void *agent, SoftMatchPendingParams params, std::string* http_body);
+typedef int (*func_post_soft_match_pending)(void *agent, SoftMatchPendingActionParams params, std::string* http_body);
+typedef int (*func_post_device_region)(void *agent, DeviceRegionParams params, std::string* http_body);
 
 /**
  * BBLNetworkPlugin - Singleton managing the Bambu Lab network DLL.
@@ -465,6 +469,10 @@ public:
     func_delete_filament_spools get_delete_filament_spools() const { return m_delete_filament_spools; }
     func_get_filament_config get_get_filament_config() const { return m_get_filament_config; }
     func_sync_ams_filaments get_sync_ams_filaments() const { return m_sync_ams_filaments; }
+    func_sync_slot_mappings get_sync_slot_mappings() const { return m_sync_slot_mappings; }
+    func_get_soft_match_pending get_get_soft_match_pending() const { return m_get_soft_match_pending; }
+    func_post_soft_match_pending get_post_soft_match_pending() const { return m_post_soft_match_pending; }
+    func_post_device_region get_post_device_region() const { return m_post_device_region; }
 
     func_linux_auth_start get_linux_auth_start() const { return m_linux_auth_start; }
     func_linux_auth_start_v2 get_linux_auth_start_v2() const { return m_linux_auth_start_v2; }
@@ -620,6 +628,10 @@ private:
     func_delete_filament_spools m_delete_filament_spools{nullptr};
     func_get_filament_config m_get_filament_config{nullptr};
     func_sync_ams_filaments m_sync_ams_filaments{nullptr};
+    func_sync_slot_mappings m_sync_slot_mappings{nullptr};
+    func_get_soft_match_pending m_get_soft_match_pending{nullptr};
+    func_post_soft_match_pending m_post_soft_match_pending{nullptr};
+    func_post_device_region m_post_device_region{nullptr};
     func_linux_auth_start m_linux_auth_start{nullptr};
     func_linux_auth_start_v2 m_linux_auth_start_v2{nullptr};
     func_linux_auth_status m_linux_auth_status{nullptr};

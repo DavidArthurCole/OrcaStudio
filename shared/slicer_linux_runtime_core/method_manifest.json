@@ -624,6 +624,158 @@
     "notes": "filament config body routed"
   },
   {
+    "symbol": "bambu_network_sync_ams_filaments",
+    "exported_name": "bambu_network_sync_ams_filaments",
+    "area": "network",
+    "status": "implemented",
+    "stability": "stable",
+    "notes": "AmsSyncParams and body routed"
+  },
+  {
+    "symbol": "bambu_network_sync_slot_mappings",
+    "exported_name": "bambu_network_sync_slot_mappings",
+    "area": "network",
+    "status": "implemented",
+    "stability": "stable",
+    "notes": "SlotMappingsSyncParams and body routed"
+  },
+  {
+    "symbol": "bambu_network_get_soft_match_pending",
+    "exported_name": "bambu_network_get_soft_match_pending",
+    "area": "network",
+    "status": "implemented",
+    "stability": "stable",
+    "notes": "SoftMatchPendingParams and body routed"
+  },
+  {
+    "symbol": "bambu_network_post_soft_match_pending",
+    "exported_name": "bambu_network_post_soft_match_pending",
+    "area": "network",
+    "status": "implemented",
+    "stability": "stable",
+    "notes": "SoftMatchPendingActionParams and body routed"
+  },
+  {
+    "symbol": "bambu_network_post_device_region",
+    "exported_name": "bambu_network_post_device_region",
+    "area": "network",
+    "status": "implemented",
+    "stability": "stable",
+    "notes": "DeviceRegionParams and body routed"
+  },
+  {
+    "symbol": "bambu_network_create_print_queue_project",
+    "exported_name": "bambu_network_create_print_queue_project",
+    "area": "network",
+    "status": "not-implemented",
+    "stability": "none",
+    "notes": "02.08.04 print queue export; no forwarder or host method"
+  },
+  {
+    "symbol": "bambu_network_get_print_queue_projects",
+    "exported_name": "bambu_network_get_print_queue_projects",
+    "area": "network",
+    "status": "not-implemented",
+    "stability": "none",
+    "notes": "02.08.04 print queue export; no forwarder or host method"
+  },
+  {
+    "symbol": "bambu_network_update_print_queue_project",
+    "exported_name": "bambu_network_update_print_queue_project",
+    "area": "network",
+    "status": "not-implemented",
+    "stability": "none",
+    "notes": "02.08.04 print queue export; no forwarder or host method"
+  },
+  {
+    "symbol": "bambu_network_sort_print_queue_project",
+    "exported_name": "bambu_network_sort_print_queue_project",
+    "area": "network",
+    "status": "not-implemented",
+    "stability": "none",
+    "notes": "02.08.04 print queue export; no forwarder or host method"
+  },
+  {
+    "symbol": "bambu_network_delete_print_queue_project",
+    "exported_name": "bambu_network_delete_print_queue_project",
+    "area": "network",
+    "status": "not-implemented",
+    "stability": "none",
+    "notes": "02.08.04 print queue export; no forwarder or host method"
+  },
+  {
+    "symbol": "bambu_network_update_print_queue_plate",
+    "exported_name": "bambu_network_update_print_queue_plate",
+    "area": "network",
+    "status": "not-implemented",
+    "stability": "none",
+    "notes": "02.08.04 print queue export; no forwarder or host method"
+  },
+  {
+    "symbol": "bambu_network_sort_print_queue_plate",
+    "exported_name": "bambu_network_sort_print_queue_plate",
+    "area": "network",
+    "status": "not-implemented",
+    "stability": "none",
+    "notes": "02.08.04 print queue export; no forwarder or host method"
+  },
+  {
+    "symbol": "bambu_network_delete_print_queue_plate",
+    "exported_name": "bambu_network_delete_print_queue_plate",
+    "area": "network",
+    "status": "not-implemented",
+    "stability": "none",
+    "notes": "02.08.04 print queue export; no forwarder or host method"
+  },
+  {
+    "symbol": "bambu_network_extract_print_queue_plate",
+    "exported_name": "bambu_network_extract_print_queue_plate",
+    "area": "network",
+    "status": "not-implemented",
+    "stability": "none",
+    "notes": "02.08.04 print queue export; no forwarder or host method"
+  },
+  {
+    "symbol": "bambu_network_delete_unavailable_print_queue_plates",
+    "exported_name": "bambu_network_delete_unavailable_print_queue_plates",
+    "area": "network",
+    "status": "not-implemented",
+    "stability": "none",
+    "notes": "02.08.04 print queue export; no forwarder or host method"
+  },
+  {
+    "symbol": "bambu_network_get_print_queue_model_profile",
+    "exported_name": "bambu_network_get_print_queue_model_profile",
+    "area": "network",
+    "status": "not-implemented",
+    "stability": "none",
+    "notes": "02.08.04 print queue export; no forwarder or host method"
+  },
+  {
+    "symbol": "bambu_network_upload_print_queue_content",
+    "exported_name": "bambu_network_upload_print_queue_content",
+    "area": "network",
+    "status": "not-implemented",
+    "stability": "none",
+    "notes": "02.08.04 print queue export; no forwarder or host method"
+  },
+  {
+    "symbol": "bambu_network_download_print_queue_config",
+    "exported_name": "bambu_network_download_print_queue_config",
+    "area": "network",
+    "status": "not-implemented",
+    "stability": "none",
+    "notes": "02.08.04 print queue export; no forwarder or host method"
+  },
+  {
+    "symbol": "bambu_network_start_print_queue_task",
+    "exported_name": "bambu_network_start_print_queue_task",
+    "area": "network",
+    "status": "not-implemented",
+    "stability": "none",
+    "notes": "02.08.04 print queue export; no forwarder or host method"
+  },
+  {
     "symbol": "bambu_network_get_printer_firmware",
     "exported_name": "bambu_network_get_printer_firmware",
     "area": "network",

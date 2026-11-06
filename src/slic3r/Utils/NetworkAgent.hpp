@@ -104,6 +104,10 @@ public:
     int get_user_print_info(unsigned int* http_code, std::string* http_body, const std::string& provider = ORCA_CLOUD_PROVIDER);
     int get_user_tasks(TaskQueryParams params, std::string* http_body, const std::string& provider = ORCA_CLOUD_PROVIDER);
     int get_printer_firmware(std::string dev_id, unsigned* http_code, std::string* http_body, const std::string& provider = ORCA_CLOUD_PROVIDER);
+    int sync_slot_mappings(SlotMappingsSyncParams params, std::string* http_body, const std::string& provider = ORCA_CLOUD_PROVIDER);
+    int get_soft_match_pending(SoftMatchPendingParams params, std::string* http_body, const std::string& provider = ORCA_CLOUD_PROVIDER);
+    int post_soft_match_pending(SoftMatchPendingActionParams params, std::string* http_body, const std::string& provider = ORCA_CLOUD_PROVIDER);
+    int post_device_region(DeviceRegionParams params, std::string* http_body, const std::string& provider = ORCA_CLOUD_PROVIDER);
     int get_task_plate_index(std::string task_id, int* plate_index, const std::string& provider = ORCA_CLOUD_PROVIDER);
     int get_user_info(int* identifier, const std::string& provider = ORCA_CLOUD_PROVIDER);
     int get_subtask_info(std::string subtask_id, std::string* task_json, unsigned int* http_code, std::string* http_body, const std::string& provider = ORCA_CLOUD_PROVIDER);

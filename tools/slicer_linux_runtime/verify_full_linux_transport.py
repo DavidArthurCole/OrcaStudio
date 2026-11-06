@@ -845,12 +845,25 @@ require(
 )
 require(
     "src/slic3r/Utils/bambu_networking.hpp",
-    '#define BAMBU_NETWORK_AGENT_VERSION "02.08.01"',
+    '#define BAMBU_NETWORK_AGENT_VERSION "02.08.04"',
     '#define BAMBU_NETWORK_ERR_AMS_SYNC_FAILED               -32',
+    "    std::string     queue_plate_id;",
+    '#define BAMBU_NETWORK_ERR_POST_DEVICE_REGION_FAILED               -60',
+    "struct SlotMappingsSyncParams {",
+    "struct PrintQueueTaskParams",
+)
+require(
+    "shared/slicer_linux_runtime_core/RuntimeCoreJson.hpp",
+    '{"queue_plate_id", p.queue_plate_id}',
+    'p.queue_plate_id = j.value("queue_plate_id", std::string());',
+)
+require(
+    "tools/slicer_linux_runtime_host/LinuxRuntimeHost.cpp",
+    'p.queue_plate_id = j.value("queue_plate_id", std::string());',
 )
 require(
     "version.inc",
-    'set(SLIC3R_VERSION "02.08.01.55")',
+    'set(SLIC3R_VERSION "02.08.04.61")',
 )
 
 for rel in (
@@ -963,7 +976,7 @@ require(
 
 require(
     "scripts/generate_linux_payload_manifest.py",
-    'DEFAULT_ABI_VERSION = "02.08.01"',
+    'DEFAULT_ABI_VERSION = "02.08.04"',
     'MANIFEST_NAME = "linux_component_manifest.json"',
     '{"schema": 1, "files": files}',
 )
@@ -1237,6 +1250,26 @@ if gui_app_text.count("liborcastudio_rosetta_splitlock_compat.so") != 1:
 network_plugin_text = read("src/slic3r/Utils/BBLNetworkPlugin.cpp")
 if network_plugin_text.count("liborcastudio_rosetta_splitlock_compat.so") != 1:
     fail("network plug-in preflight must require the Rosetta shim only in the Apple branch")
+
+NEW_CALLS = ("sync_slot_mappings", "get_soft_match_pending", "post_soft_match_pending", "post_device_region")
+QUEUE_EXPORTS = (
+    "create_print_queue_project", "get_print_queue_projects", "update_print_queue_project",
+    "sort_print_queue_project", "delete_print_queue_project", "update_print_queue_plate",
+    "sort_print_queue_plate", "delete_print_queue_plate", "extract_print_queue_plate",
+    "delete_unavailable_print_queue_plates", "get_print_queue_model_profile",
+    "upload_print_queue_content", "download_print_queue_config", "start_print_queue_task",
+)
+require(
+    "src/slic3r/Utils/SlicerLinuxRuntime/SlicerLinuxRuntimeForwarderExports.cpp",
+    *[f"SLICER_LINUX_RUNTIME_EXPORT int bambu_network_{n}(" for n in NEW_CALLS],
+)
+require(
+    "tools/slicer_linux_runtime_host/LinuxRuntimeHost.cpp",
+    *[f'method == "net.{n}"' for n in NEW_CALLS],
+)
+for rel in ("shared/slicer_linux_runtime_core/RuntimeCoreMethodManifest.cpp",
+            "shared/slicer_linux_runtime_core/method_manifest.json"):
+    require(rel, *[f'"bambu_network_{n}"' for n in NEW_CALLS + QUEUE_EXPORTS + ("sync_ams_filaments",)], '"not-implemented"')
 
 if errors:
     print("full Linux transport verification FAILED", file=sys.stderr)

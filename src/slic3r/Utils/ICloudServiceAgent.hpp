@@ -292,6 +292,11 @@ public:
      */
     virtual int get_printer_firmware(std::string dev_id, unsigned* http_code, std::string* http_body) = 0;
 
+    virtual int sync_slot_mappings(SlotMappingsSyncParams params, std::string* http_body) { return -1; }
+    virtual int get_soft_match_pending(SoftMatchPendingParams params, std::string* http_body) { return -1; }
+    virtual int post_soft_match_pending(SoftMatchPendingActionParams params, std::string* http_body) { return -1; }
+    virtual int post_device_region(DeviceRegionParams params, std::string* http_body) { return -1; }
+
     /**
      * Get plate index for a cloud task.
      */
