@@ -97,8 +97,23 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends dbus-x11 libasound2t64 libgtk-3-dev libpulse0 libwebkit2gtk-4.1-dev novnc openssl websockify x11vnc xvfb
 
+      - name: Compute Linux deps cache key
+        shell: bash
+        run: |
+          set -euo pipefail
+          deps_tree="$(git rev-parse HEAD:deps 2>/dev/null || echo no-deps)"
+          recipe_hash="$(find build_linux.sh scripts/linux.d -type f -print0 | sort -z | xargs -0 cat | sha256sum | cut -c1-12)"
+          echo "LINUX_DEPS_CACHE_KEY=linux-runtime-ubuntu24.04-deps-${deps_tree}-${recipe_hash}-v1" >> "$GITHUB_ENV"
+
+      - name: Cache Linux deps
+        id: cache_linux_deps
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/deps/build/OrcaSlicer_dep
+          key: ${{ env.LINUX_DEPS_CACHE_KEY }}
 
       - name: Build Linux deps
+        if: steps.cache_linux_deps.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail

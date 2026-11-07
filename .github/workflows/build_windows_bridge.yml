@@ -38,7 +38,23 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y dbus-x11 epiphany-browser libasound2t64 libgtk-3-dev libpulse0 libwebkit2gtk-4.1-dev novnc openbox openssl websockify x11vnc xvfb
 
+      - name: Compute Linux deps cache key
+        shell: bash
+        run: |
+          set -euo pipefail
+          deps_tree="$(git rev-parse HEAD:deps 2>/dev/null || echo no-deps)"
+          recipe_hash="$(find build_linux.sh scripts/linux.d -type f -print0 | sort -z | xargs -0 cat | sha256sum | cut -c1-12)"
+          echo "LINUX_DEPS_CACHE_KEY=linux-runtime-ubuntu24.04-deps-${deps_tree}-${recipe_hash}-v1" >> "$GITHUB_ENV"
+
+      - name: Cache Linux deps
+        id: cache_linux_deps
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/deps/build/OrcaSlicer_dep
+          key: ${{ env.LINUX_DEPS_CACHE_KEY }}
+
       - name: Build Linux deps
+        if: steps.cache_linux_deps.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -99,11 +115,51 @@ jobs:
           path: ./wsl_rootfs_${{ github.sha }}.tar.gz
           if-no-files-found: error
 
+  build_windows_deps:
+    name: Build Windows deps
+    runs-on: windows-latest
+    timeout-minutes: 240
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          lfs: 'false'
+
+      - name: Cache Windows deps
+        id: cache_windows_deps
+        uses: actions/cache@v5
+        with:
+          path: ${{ github.workspace }}/deps/build/OrcaSlicer_dep
+          key: windows-deps-${{ hashFiles('deps/**', 'build_release_vs.bat') }}-v1
+
+      - uses: lukka/get-cmake@latest
+        if: steps.cache_windows_deps.outputs.cache-hit != 'true'
+        with:
+          cmakeVersion: "~4.3.0"
+          useLocalCache: true
+          useCloudCache: true
+
+      - name: setup MSVC
+        if: steps.cache_windows_deps.outputs.cache-hit != 'true'
+        uses: microsoft/setup-msbuild@v3
+
+      - name: Build Windows deps
+        if: steps.cache_windows_deps.outputs.cache-hit != 'true'
+        working-directory: ${{ github.workspace }}
+        env:
+          WindowsSdkDir: 'C:\Program Files (x86)\Windows Kits\10\'
+          WindowsSDKVersion: '10.0.26100.0\'
+        shell: pwsh
+        run: .\build_release_vs.bat deps
+
   build_windows:
     name: Build Windows
     runs-on: windows-latest
     timeout-minutes: 360
-    needs: prepare_slicer_linux_runtime
+    needs:
+      - prepare_slicer_linux_runtime
+      - build_windows_deps
     env:
       ORCA_UPDATER_SIG_KEY: ${{ secrets.ORCA_UPDATER_SIG_KEY }}
 
@@ -204,13 +260,12 @@ jobs:
           Add-Content -Path $env:GITHUB_PATH -Value $nsisBin
           & $makensis /VERSION
 
-      - name: Build Windows deps
-        working-directory: ${{ github.workspace }}
-        env:
-          WindowsSdkDir: 'C:\Program Files (x86)\Windows Kits\10\'
-          WindowsSDKVersion: '10.0.26100.0\'
-        shell: pwsh
-        run: .\build_release_vs.bat deps
+      - name: Restore Windows deps
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ github.workspace }}/deps/build/OrcaSlicer_dep
+          key: windows-deps-${{ hashFiles('deps/**', 'build_release_vs.bat') }}-v1
+          fail-on-cache-miss: true
 
       - name: Build slicer Win
         working-directory: ${{ github.workspace }}
