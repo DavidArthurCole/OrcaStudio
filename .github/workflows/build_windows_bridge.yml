@@ -119,6 +119,8 @@ jobs:
     name: Build Windows deps
     runs-on: windows-latest
     timeout-minutes: 240
+    outputs:
+      deps_cache_key: ${{ steps.deps_key.outputs.key }}
 
     steps:
       - name: Checkout
@@ -126,12 +128,21 @@ jobs:
         with:
           lfs: 'false'
 
+      - name: Compute Windows deps cache key
+        id: deps_key
+        shell: bash
+        run: |
+          set -euo pipefail
+          deps_tree="$(git rev-parse HEAD:deps)"
+          script_blob="$(git rev-parse HEAD:build_release_vs.bat)"
+          echo "key=windows-deps-${deps_tree}-${script_blob::12}-v1" >> "$GITHUB_OUTPUT"
+
       - name: Cache Windows deps
         id: cache_windows_deps
         uses: actions/cache@v5
         with:
           path: ${{ github.workspace }}/deps/build/OrcaSlicer_dep
-          key: windows-deps-${{ hashFiles('deps/**', 'build_release_vs.bat') }}-v1
+          key: ${{ steps.deps_key.outputs.key }}
 
       - uses: lukka/get-cmake@latest
         if: steps.cache_windows_deps.outputs.cache-hit != 'true'
@@ -264,7 +275,7 @@ jobs:
         uses: actions/cache/restore@v5
         with:
           path: ${{ github.workspace }}/deps/build/OrcaSlicer_dep
-          key: windows-deps-${{ hashFiles('deps/**', 'build_release_vs.bat') }}-v1
+          key: ${{ needs.build_windows_deps.outputs.deps_cache_key }}
           fail-on-cache-miss: true
 
       - name: Build slicer Win
