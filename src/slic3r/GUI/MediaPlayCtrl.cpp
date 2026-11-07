@@ -160,6 +160,24 @@ MediaPlayCtrl::MediaPlayCtrl(wxWindow *parent, BBLMediaCtrl *media_ctrl, const w
     sizer->Add(m_label_status, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(25));
     SetSizer(sizer);
 
+    m_idle_panel = new wxPanel(parent, wxID_ANY);
+    m_idle_panel->SetBackgroundColour(wxColour(0x26, 0x2E, 0x30));
+    m_idle_panel->SetMinSize(wxSize(-1, FromDIP(120)));
+    m_idle_play = new Button(m_idle_panel, _L("Start live view"), "media_play", wxBORDER_NONE, 24);
+    m_idle_play->SetStyle(ButtonStyle::Confirm, ButtonType::Choice);
+    m_idle_play->SetCanFocus(false);
+    m_idle_play->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [this](auto &e) { TogglePlay(); });
+    m_idle_status = new Label(m_idle_panel, "");
+    m_idle_status->SetForegroundColour(wxColour(0xC8, 0xCD, 0xCF));
+    wxBoxSizer *idle_sizer = new wxBoxSizer(wxVERTICAL);
+    idle_sizer->AddStretchSpacer(1);
+    idle_sizer->Add(m_idle_play, 0, wxALIGN_CENTER_HORIZONTAL | wxALL, FromDIP(8));
+    idle_sizer->Add(m_idle_status, 0, wxALIGN_CENTER_HORIZONTAL | wxLEFT | wxRIGHT, FromDIP(24));
+    idle_sizer->AddStretchSpacer(1);
+    m_idle_panel->SetSizer(idle_sizer);
+    m_idle_panel->Hide();
+    update_idle_view();
+
     m_thread = boost::thread([this] {
         media_proc();
     });
@@ -367,6 +385,7 @@ void MediaPlayCtrl::Play()
     m_disable_lan = false;
     m_failed_code = 0;
     m_last_state  = MEDIASTATE_INITIALIZING;
+    update_idle_view();
     m_button_play->SetIcon("media_stop");
 
     if (!m_remote_proto) { // not support tutk
@@ -456,6 +475,7 @@ void MediaPlayCtrl::Stop(wxString const &msg, wxString const &msg2)
         } else
             SetStatus(_L("Video Stopped."), false);
         m_last_state = MEDIASTATE_IDLE;
+        update_idle_view();
         bool auto_retry = wxGetApp().app_config->get("liveview", "auto_retry") != "false";
         if (!auto_retry || m_failed_code >= 100 || m_failed_code == 1) // not keep retry on local error or EOS
             m_next_retry = wxDateTime();
@@ -701,6 +721,36 @@ void MediaPlayCtrl::SetStatus(wxString const &msg2, bool hyperlink)
     m_label_status->SetWindowStyle(style);
     m_label_status->InvalidateBestSize();
     Layout();
+    if (m_idle_status) {
+        m_idle_status->SetLabel(msg);
+        m_idle_status->Wrap(std::max(FromDIP(200), m_idle_panel->GetSize().GetWidth() - FromDIP(48)));
+        m_idle_status->InvalidateBestSize();
+    }
+    update_idle_view();
+}
+
+void MediaPlayCtrl::show_video_area(bool show) {
+    m_video_area_shown = show;
+    update_idle_view();
+}
+
+void MediaPlayCtrl::update_idle_view() {
+    if (!m_idle_panel)
+        return;
+    const bool idle = m_last_state == MEDIASTATE_IDLE;
+    const bool show_idle = m_video_area_shown && idle;
+    const bool show_media = m_video_area_shown && !idle;
+    bool changed = false;
+    if (m_idle_panel->IsShown() != show_idle) {
+        m_idle_panel->Show(show_idle);
+        changed = true;
+    }
+    if (m_media_ctrl->IsShown() != show_media) {
+        m_media_ctrl->Show(show_media);
+        changed = true;
+    }
+    if (changed && GetParent())
+        GetParent()->Layout();
 }
 
 bool MediaPlayCtrl::IsStreaming() const { return m_streaming; }

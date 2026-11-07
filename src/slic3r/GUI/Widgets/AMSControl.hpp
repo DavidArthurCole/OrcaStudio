@@ -90,6 +90,9 @@ protected:
     wxSimplebook *m_simplebook_ams_right{ nullptr };
     wxSimplebook *m_simplebook_bottom{nullptr};
     wxPanel      *m_panel_down_road{ nullptr };
+    wxPanel      *m_panel_ams_stack{ nullptr };
+    wxBoxSizer   *m_sizer_ams_stack{ nullptr };
+    bool          m_stack_mode{ false };
     int          m_left_page_index = 0;
     int          m_right_page_index = 0;
 
@@ -219,6 +222,7 @@ public:
 
 private:
     std::string get_filament_id(const std::string& ams_id, const std::string& can_id);
+    void set_stack_mode(bool on);
 
 public:
     std::string m_current_select;

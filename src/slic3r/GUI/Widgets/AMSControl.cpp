@@ -96,6 +96,13 @@ AMSControl::AMSControl(wxWindow *parent, wxWindowID id, const wxPoint &pos, cons
     //m_sizer_ams_area_left->Add(m_simplebook_ams_left, 0, wxLEFT | wxRIGHT, FromDIP(5));
     m_sizer_ams_area_left->Add(m_simplebook_ams_left, 0, wxALIGN_CENTER, 0);
 
+    m_panel_ams_stack = new wxPanel(m_amswin, wxID_ANY);
+    m_panel_ams_stack->SetBackgroundColour(AMS_CONTROL_DEF_BLOCK_BK_COLOUR);
+    m_sizer_ams_stack = new wxBoxSizer(wxVERTICAL);
+    m_panel_ams_stack->SetSizer(m_sizer_ams_stack);
+    m_panel_ams_stack->Hide();
+    m_sizer_ams_area_left->Add(m_panel_ams_stack, 0, wxALIGN_CENTER, 0);
+
     m_simplebook_ams_right = new wxSimplebook(m_amswin, wxID_ANY, wxDefaultPosition, AMS_CANS_WINDOW_SIZE, 0);
     m_simplebook_ams_right->SetBackgroundColour(AMS_CONTROL_DEF_BLOCK_BK_COLOUR);
     //m_sizer_ams_area_right->Add(m_simplebook_ams_right, 0, wxLEFT | wxRIGHT, FromDIP(5));
@@ -357,6 +364,19 @@ void AMSControl::AmsSelectedSwitch(wxCommandEvent& event) {
     if (m_current_ams != ams_id_selected){
         m_current_ams = ams_id_selected;
     }
+    if (m_stack_mode) {
+        for (auto &[id, item] : m_ams_item_list) {
+            if (!item || id == ams_id_selected)
+                continue;
+            for (auto can : item->get_can_lib_list())
+                can.second->UnSelected();
+        }
+        if (IsAmsInRightPanel(ams_id_selected))
+            m_current_show_ams_right = ams_id_selected;
+        else
+            m_current_show_ams_left = ams_id_selected;
+        return;
+    }
     if (m_current_show_ams_left != ams_id_selected && m_current_show_ams_left != "") {
         auto item = m_ams_item_list[m_current_show_ams_left];
         if (!item) return;
@@ -573,7 +593,18 @@ void AMSControl::CreateAms()
 }
 
 
+void AMSControl::set_stack_mode(bool on) {
+    m_stack_mode = on;
+    m_sizer_ams_body->SetOrientation(on ? wxVERTICAL : wxHORIZONTAL);
+    m_panel_ams_stack->Show(on);
+    m_simplebook_ams_left->Show(!on);
+    m_panel_down_road->Show(!on);
+}
+
 void AMSControl::ClearAms() {
+    m_sizer_ams_stack->Clear(true);
+    if (m_stack_mode)
+        set_stack_mode(false);
     m_simplebook_ams_right->DeleteAllPages();
     m_simplebook_ams_left->DeleteAllPages();
     m_simplebook_ams_right->DestroyChildren();
@@ -726,6 +757,36 @@ void AMSControl::CreateAmsSingleNozzle(const std::string &series_name, const std
     std::vector<AMSinfo> single_info;
 
     //Freeze();
+
+    if (m_ams_info.size() > 1) {
+        set_stack_mode(true);
+        for (const auto &info : m_ams_info) {
+            m_item_ids[DEPUTY_EXTRUDER_ID].push_back(info.ams_id);
+            auto ams_item = new AmsItem(m_panel_ams_stack, info, info.ams_type, AMSPanelPos::LEFT_PANEL);
+            ams_item->SetBackgroundColour(StateColor::darkModeColorFor(AMS_CONTROL_DEF_LIB_BK_COLOUR));
+            m_sizer_ams_stack->Add(ams_item, 0, wxALIGN_CENTER_HORIZONTAL | wxBOTTOM, FromDIP(8));
+            m_ams_item_list[info.ams_id] = ams_item;
+        }
+        m_panel_ams_stack->Layout();
+        m_panel_ams_stack->Fit();
+        m_panel_prv_left->Hide();
+        m_panel_prv_right->Hide();
+        if (!m_ext_info.empty()) {
+            single_info.push_back(m_ext_info[0]);
+            m_item_ids[MAIN_EXTRUDER_ID].push_back(single_info[0].ams_id);
+            AddAms(single_info, series_name, printer_type, AMSPanelPos::RIGHT_PANEL);
+            m_simplebook_ams_right->Show();
+            m_simplebook_ams_right->SetSelection(0);
+        }
+        m_current_show_ams_left = m_item_ids[DEPUTY_EXTRUDER_ID][0];
+        m_current_show_ams_right = m_item_ids[MAIN_EXTRUDER_ID].size() > 0 ? m_item_ids[MAIN_EXTRUDER_ID][0] : "";
+        m_current_ams = "";
+        m_extruder->updateNozzleNum(1);
+        m_extruder->OnAmsLoading(false, MAIN_EXTRUDER_ID);
+        m_amswin->Layout();
+        m_amswin->Fit();
+        return;
+    }
 
     //add ams data
     for (auto ams_info = m_ams_info.begin(); ams_info != m_ams_info.end(); ams_info++) {
@@ -1334,6 +1395,16 @@ void AMSControl::AddAmsPreview(std::vector<AMSinfo>single_info, AMSPanelPos pos)
 void AMSControl::SwitchAms(std::string ams_id)
 {
     if(ams_id == m_current_show_ams_left || ams_id == m_current_show_ams_right){return;}
+
+    if (m_stack_mode) {
+        if (IsAmsInRightPanel(ams_id))
+            m_current_show_ams_right = ams_id;
+        else
+            m_current_show_ams_left = ams_id;
+        m_current_select = ams_id;
+        post_event(SimpleEvent(EVT_AMS_SWITCH));
+        return;
+    }
 
     bool is_in_right = IsAmsInRightPanel(ams_id);
     if (is_in_right){

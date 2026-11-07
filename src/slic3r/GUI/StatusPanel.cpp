@@ -1551,6 +1551,7 @@ wxBoxSizer *StatusBasePanel::create_monitoring_page()
     });
 
     sizer->Add(m_media_ctrl, 1, wxEXPAND | wxALL, 0);
+    sizer->Add(m_media_play_ctrl->idle_panel(), 1, wxEXPAND | wxALL, 0);
     sizer->Add(m_custom_camera_view, 1, wxEXPAND | wxALL, 0);
     sizer->Add(m_media_play_ctrl, 0, wxEXPAND | wxALL, 0);
 //    media_ctrl_panel->SetSizer(bSizer_monitoring);
@@ -5001,7 +5002,7 @@ void StatusBasePanel::handle_camera_source_change()
 void StatusBasePanel::toggle_builtin_camera()
 {
     m_custom_camera_view->Hide();
-    m_media_ctrl->Show();
+    m_media_play_ctrl->show_video_area(true);
     m_media_play_ctrl->Show();
 }
 
@@ -5011,7 +5012,7 @@ void StatusBasePanel::toggle_custom_camera()
 
     if (enabled) {
         m_custom_camera_view->Show();
-        m_media_ctrl->Hide();
+        m_media_play_ctrl->show_video_area(false);
         m_media_play_ctrl->Hide();
     }
 }
@@ -5019,7 +5020,7 @@ void StatusBasePanel::toggle_custom_camera()
 void StatusBasePanel::on_camera_switch_toggled(wxMouseEvent& event)
 {
     const auto enabled = wxGetApp().app_config->get("camera", "enable_custom_source") == "true";
-    if (enabled && m_media_ctrl->IsShown()) {
+    if (enabled && !m_custom_camera_view->IsShown()) {
         toggle_custom_camera();
     } else {
         toggle_builtin_camera();

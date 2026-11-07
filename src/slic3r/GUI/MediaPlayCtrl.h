@@ -46,6 +46,10 @@ public:
 
     void jump_to_play();
 
+    wxWindow *idle_panel() const { return m_idle_panel; }
+
+    void show_video_area(bool show);
+
 protected:
     void onStateChanged(wxMediaEvent & event);
 
@@ -61,6 +65,8 @@ private:
     void load();
 
     void on_show_hide(wxShowEvent & evt);
+
+    void update_idle_view();
 
     void media_proc();
 
@@ -111,6 +117,11 @@ private:
     ::Button *m_button_play;
     ::Label * m_label_stat;
     ::Label * m_label_status;
+
+    wxPanel * m_idle_panel = nullptr;
+    ::Button *m_idle_play = nullptr;
+    ::Label * m_idle_status = nullptr;
+    bool m_video_area_shown = true;
 };
 
 }}
