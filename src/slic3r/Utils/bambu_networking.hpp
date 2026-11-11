@@ -8,7 +8,7 @@
 #include <cstdint>
 
 #ifndef BAMBU_NETWORK_AGENT_VERSION
-#define BAMBU_NETWORK_AGENT_VERSION "02.08.04"
+#define BAMBU_NETWORK_AGENT_VERSION "02.09.01"
 #endif
 
 #ifndef BAMBU_NETWORK_AGENT_VERSION_LEGACY
@@ -85,6 +85,8 @@ namespace Slic3r {
 #define BAMBU_NETWORK_ERR_DOWNLOAD_PRINT_QUEUE_CONFIG_FAILED      -58
 #define BAMBU_NETWORK_ERR_START_PRINT_QUEUE_TASK_FAILED           -59
 #define BAMBU_NETWORK_ERR_POST_DEVICE_REGION_FAILED               -60
+#define BAMBU_NETWORK_ERR_GET_MINORS_DECISIONS_FAILED             -61
+#define BAMBU_NETWORK_ERR_GET_CHILD_REGISTRATION_KEY_FAILED       -62
 
 #define BAMBU_NETWORK_ERR_BIND_CREATE_SOCKET_FAILED          -1010
 #define BAMBU_NETWORK_ERR_BIND_SOCKET_CONNECT_FAILED         -1020
@@ -467,6 +469,34 @@ struct DeviceRegionParams {
     std::string ClientType;
     std::string country;
     std::string XClientCountry;
+};
+
+enum class MinorDecision : int
+{
+    Allow = 0,
+    Deny = 1,
+    NeedIdv = 2,
+};
+
+inline constexpr const char* MINORS_SCENE_STUDIO_LOGIN_VIA_EMAIL = "STUDIO_LOGIN_VIA_EMAIL";
+inline constexpr const char* MINORS_SCENE_STUDIO_LOGIN_VIA_3P = "STUDIO_LOGIN_VIA_3P";
+inline constexpr const char* MINORS_SCENE_JOIN_USER_EXPERIENCE_PROGRAM = "JOIN_USER_EXPERIENCE_PROGRAM";
+inline constexpr const char* MINORS_SCENE_REMOTE_CONTROL_PRINTER = "REMOTE_CONTROL_PRINTER";
+inline constexpr const char* MINORS_SCENE_ACCESS_MAKER_WORLD = "ACCESS_MAKER_WORLD";
+inline constexpr const char* MINORS_SCENE_ACCESS_MAKER_LAB = "ACCESS_MAKER_LAB";
+inline constexpr const char* MINORS_SCENE_ACCESS_MAKER_SUPPLY = "ACCESS_MAKER_SUPPLY";
+inline constexpr const char* MINORS_SCENE_FORUM_LOGIN_VIA_EMAIL = "FORUM_LOGIN_VIA_EMAIL";
+inline constexpr const char* MINORS_SCENE_FORUM_LOGIN_VIA_3P = "FORUM_LOGIN_VIA_3P";
+
+inline constexpr const char* FAMILY_LINK_DECISION_NO_CONFIG = "no_config";
+inline constexpr const char* FAMILY_LINK_DECISION_ALLOW = "allow";
+inline constexpr const char* FAMILY_LINK_DECISION_DENY = "deny";
+
+struct MinorsDecisionResult {
+    std::string   scene_code;
+    bool          family_link_enable = false;
+    std::string   family_link_decision;
+    MinorDecision decision = MinorDecision::NeedIdv;
 };
 
 struct PublishParams {

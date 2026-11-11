@@ -11,7 +11,7 @@ if(NOT DEFINED BBL_INTERNAL_TESTING)
 set(BBL_INTERNAL_TESTING "1")
 endif()
 
-set(SLIC3R_VERSION "02.08.04.61")
+set(SLIC3R_VERSION "02.09.01.70")
 set(SoftFever_VERSION "${SLIC3R_VERSION}")
 
 string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)"

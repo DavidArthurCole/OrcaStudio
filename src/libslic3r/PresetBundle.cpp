@@ -5088,6 +5088,32 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_vendor_configs_
                     default_config = &presets_collection->default_preset().config;
             }
             config = *default_config;
+            std::vector<std::string> includes;
+            if (auto includes_it = key_values.find(BBL_JSON_KEY_INCLUDES); includes_it != key_values.end() && !includes_it->second.empty()) {
+                try {
+                    const nlohmann::json includes_json = nlohmann::json::parse(includes_it->second);
+                    if (includes_json.is_string())
+                        includes.push_back(includes_json.get<std::string>());
+                    else if (includes_json.is_array())
+                        for (const auto &item : includes_json)
+                            if (item.is_string())
+                                includes.push_back(item.get<std::string>());
+                } catch (const std::exception &) {
+                    BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << ": invalid include value in " << subfile;
+                }
+            }
+            for (const auto &name : includes) {
+                auto inc = config_maps.find(name);
+                if (inc == config_maps.end()) {
+                    ++m_errors;
+                    BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << ": can not find include " << name << " for " << preset_name;
+                    continue;
+                }
+                const DynamicPrintConfig &include_config = inc->second;
+                const DynamicPrintConfig &include_default = presets_collection->type() == Preset::TYPE_PRINTER ?
+                    presets_collection->default_preset_for(include_config).config : presets_collection->default_preset().config;
+                config.apply_only(include_config, include_config.diff(include_default));
+            }
             config.apply(config_src);
             extend_default_config_length(config, true, *default_config);
             if (instantiation == "false" && "Template" != vendor_name) {
@@ -5286,10 +5312,8 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_vendor_configs_
         std::string reason = parse_subfile(substitution_context, substitutions, flags, subfile, configs, filament_id_maps, presets, presets_loaded);
         if (!reason.empty()) {
             ++m_errors;
-            //parse error
             std::string subfile_path = path + "/" + vendor_name + "/" + subfile.second;
-            BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(", got error when parse process setting from %1%") % subfile_path;
-            throw ConfigurationError((boost::format("Failed loading configuration file %1%\nSuggest cleaning the directory %2% firstly") % subfile_path % path).str());
+            BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(", skipped process setting %1%: %2%") % subfile_path % reason;
         }
     }
 
@@ -5304,10 +5328,8 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_vendor_configs_
                                            presets_loaded, is_orca_lib);
         if (!reason.empty()) {
             ++m_errors;
-            //parse error
             std::string subfile_path = path + "/" + vendor_name + "/" + subfile.second;
-            BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(", got error when parse filament setting from %1%") % subfile_path;
-            throw ConfigurationError((boost::format("Failed loading configuration file %1%\nSuggest cleaning the directory %2% firstly") % subfile_path % path).str());
+            BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(", skipped filament setting %1%: %2%") % subfile_path % reason;
         }
     }
     if (is_orca_lib) {
@@ -5324,10 +5346,8 @@ std::pair<PresetsConfigSubstitutions, size_t> PresetBundle::load_vendor_configs_
         std::string reason = parse_subfile(substitution_context, substitutions, flags, subfile, configs, filament_id_maps, presets, presets_loaded);
         if (!reason.empty()) {
             ++m_errors;
-            //parse error
             std::string subfile_path = path + "/" + vendor_name + "/" + subfile.second;
-            BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(", got error when parse printer setting from %1%") % subfile_path;
-            throw ConfigurationError((boost::format("Failed loading configuration file %1%\nSuggest cleaning the directory %2% firstly") % subfile_path % path).str());
+            BOOST_LOG_TRIVIAL(error) << __FUNCTION__ << boost::format(", skipped printer setting %1%: %2%") % subfile_path % reason;
         }
     }
 

@@ -93,6 +93,12 @@ protected:
     wxPanel      *m_panel_ams_stack{ nullptr };
     wxBoxSizer   *m_sizer_ams_stack{ nullptr };
     bool          m_stack_mode{ false };
+    AMSStackSpine *m_stack_spine{ nullptr };
+    wxBoxSizer    *m_sizer_stack_foot{ nullptr };
+    wxBoxSizer    *m_sizer_stack_extruder{ nullptr };
+    AMSStackTube  *m_stack_tube{ nullptr };
+    wxStaticBitmap *m_stack_printer{ nullptr };
+    ScalableBitmap m_stack_printer_bmp;
     int          m_left_page_index = 0;
     int          m_right_page_index = 0;
 
@@ -223,6 +229,9 @@ public:
 private:
     std::string get_filament_id(const std::string& ams_id, const std::string& can_id);
     void set_stack_mode(bool on);
+    void update_stack_pass(const std::string &ams_id, const wxColour &col);
+    void relayout_ancestors();
+    void set_stack_printer(const std::string &printer_type);
 
 public:
     std::string m_current_select;

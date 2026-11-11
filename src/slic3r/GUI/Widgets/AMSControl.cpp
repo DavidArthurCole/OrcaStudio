@@ -98,7 +98,7 @@ AMSControl::AMSControl(wxWindow *parent, wxWindowID id, const wxPoint &pos, cons
 
     m_panel_ams_stack = new wxPanel(m_amswin, wxID_ANY);
     m_panel_ams_stack->SetBackgroundColour(AMS_CONTROL_DEF_BLOCK_BK_COLOUR);
-    m_sizer_ams_stack = new wxBoxSizer(wxVERTICAL);
+    m_sizer_ams_stack = new wxBoxSizer(wxHORIZONTAL);
     m_panel_ams_stack->SetSizer(m_sizer_ams_stack);
     m_panel_ams_stack->Hide();
     m_sizer_ams_area_left->Add(m_panel_ams_stack, 0, wxALIGN_CENTER, 0);
@@ -225,6 +225,18 @@ AMSControl::AMSControl(wxWindow *parent, wxWindowID id, const wxPoint &pos, cons
     m_sizer_body->Add(0, 0, 1, wxEXPAND | wxTOP, FromDIP(10));
     m_sizer_body->Add(m_sizer_ams_body, 0, wxALIGN_CENTER, 0);
     m_sizer_body->Add(m_sizer_down_road, 0, wxALIGN_CENTER, 0);
+
+    m_sizer_stack_foot = new wxBoxSizer(wxHORIZONTAL);
+    m_sizer_stack_extruder = new wxBoxSizer(wxVERTICAL);
+    m_stack_tube = new AMSStackTube(m_amswin);
+    m_stack_tube->set_extruder(m_extruder);
+    m_sizer_stack_extruder->Add(m_stack_tube, 0, wxEXPAND, 0);
+    m_sizer_stack_foot->Add(m_sizer_stack_extruder, 0, 0, 0);
+    m_stack_printer = new wxStaticBitmap(m_amswin, wxID_ANY, wxNullBitmap);
+    m_stack_printer->Hide();
+    m_sizer_option_mid->Add(m_stack_printer, 0, wxALIGN_CENTER, 0);
+    m_sizer_body->Add(m_sizer_stack_foot, 0, wxALIGN_CENTER_HORIZONTAL | wxBOTTOM, FromDIP(8));
+    m_sizer_body->Hide(m_sizer_stack_foot, true);
     m_sizer_body->Add(m_sizer_ams_option, 0, wxEXPAND, 0);
 
     m_amswin->SetSizer(m_sizer_body);
@@ -536,6 +548,13 @@ void AMSControl::msw_rescale()
     if (m_down_road){
         m_down_road->msw_rescale();
     }
+    if (m_stack_spine)
+        m_stack_spine->msw_rescale();
+    m_stack_tube->msw_rescale();
+    if (m_stack_printer_bmp.bmp().IsOk()) {
+        m_stack_printer_bmp.msw_rescale();
+        m_stack_printer->SetBitmap(m_stack_printer_bmp.bmp());
+    }
 
     if (m_percent_humidity_dry_popup){
         m_percent_humidity_dry_popup->msw_rescale();
@@ -595,14 +614,70 @@ void AMSControl::CreateAms()
 
 void AMSControl::set_stack_mode(bool on) {
     m_stack_mode = on;
-    m_sizer_ams_body->SetOrientation(on ? wxVERTICAL : wxHORIZONTAL);
     m_panel_ams_stack->Show(on);
     m_simplebook_ams_left->Show(!on);
+    m_simplebook_ams_right->Show(!on);
     m_panel_down_road->Show(!on);
+    if (auto spacer = m_sizer_ams_body->GetItem((size_t) 1))
+        spacer->Show(!on);
+    if (on && m_sizer_option_mid->GetItem(m_extruder)) {
+        m_sizer_option_mid->Detach(m_extruder);
+        m_sizer_stack_extruder->Add(m_extruder, 0, wxALIGN_CENTER_HORIZONTAL, 0);
+    } else if (!on && m_sizer_stack_extruder->GetItem(m_extruder)) {
+        m_sizer_stack_extruder->Detach(m_extruder);
+        m_sizer_option_mid->Insert(0, m_extruder, 0, wxALIGN_CENTER, 0);
+    }
+    m_sizer_body->Show(m_sizer_stack_foot, on, true);
+    m_extruder->set_compact(on);
+    if (!on)
+        m_stack_printer->Hide();
+    for (wxWindow *panel : {m_button_auto_refill->GetParent(), m_button_extruder_feed->GetParent()})
+        if (auto item = m_sizer_ams_option->GetItem(panel))
+            item->SetFlag(on ? wxALIGN_BOTTOM : wxALIGN_TOP);
+    m_stack_tube->set_colour(wxNullColour);
+    if (on)
+        m_panel_ams_stack->SetBackgroundColour(StateColor::darkModeColorFor(AMS_CONTROL_DEF_LIB_BK_COLOUR));
+}
+
+void AMSControl::set_stack_printer(const std::string &printer_type)
+{
+    const std::string &image_name = DevPrinterConfigUtil::get_printer_ext_img(printer_type, 0);
+    if (image_name.empty()) {
+        m_stack_printer->Hide();
+        return;
+    }
+    m_stack_printer_bmp = ScalableBitmap(this, image_name, 56);
+    m_stack_printer->SetBitmap(m_stack_printer_bmp.bmp());
+    m_stack_printer->Show();
+}
+
+void AMSControl::relayout_ancestors()
+{
+    for (wxWindow *w = GetParent(); w; w = w->GetParent()) {
+        w->InvalidateBestSize();
+        w->Layout();
+        if (auto scrolled = dynamic_cast<wxScrolledWindow *>(w)) {
+            scrolled->FitInside();
+            break;
+        }
+        if (w->IsTopLevel())
+            break;
+    }
+}
+
+void AMSControl::update_stack_pass(const std::string &ams_id, const wxColour &col)
+{
+    if (!m_stack_spine)
+        return;
+    auto it = m_ams_item_list.find(ams_id);
+    AmsItem *item = it != m_ams_item_list.end() ? it->second : nullptr;
+    m_stack_spine->set_active(col.IsOk() ? item : nullptr, col);
+    m_stack_tube->set_colour(col.IsOk() && item ? col : wxNullColour);
 }
 
 void AMSControl::ClearAms() {
     m_sizer_ams_stack->Clear(true);
+    m_stack_spine = nullptr;
     if (m_stack_mode)
         set_stack_mode(false);
     m_simplebook_ams_right->DeleteAllPages();
@@ -760,24 +835,48 @@ void AMSControl::CreateAmsSingleNozzle(const std::string &series_name, const std
 
     if (m_ams_info.size() > 1) {
         set_stack_mode(true);
-        for (const auto &info : m_ams_info) {
+        std::vector<AMSinfo> infos(m_ams_info.begin(), m_ams_info.end());
+        for (const auto &info : m_ams_info)
             m_item_ids[DEPUTY_EXTRUDER_ID].push_back(info.ams_id);
-            auto ams_item = new AmsItem(m_panel_ams_stack, info, info.ams_type, AMSPanelPos::LEFT_PANEL);
+        if (!m_ext_info.empty()) {
+            m_item_ids[MAIN_EXTRUDER_ID].push_back(m_ext_info[0].ams_id);
+            infos.push_back(m_ext_info[0]);
+        }
+        auto col_left = new wxBoxSizer(wxVERTICAL);
+        auto col_right = new wxBoxSizer(wxVERTICAL);
+        std::vector<AmsItem *> items_left;
+        std::vector<AmsItem *> items_right;
+        int height_left = 0;
+        int height_right = 0;
+        for (const auto &info : infos) {
+            const bool right = height_right < height_left;
+            auto ams_item = new AmsItem(m_panel_ams_stack, info, info.ams_type, right ? AMSPanelPos::RIGHT_PANEL : AMSPanelPos::LEFT_PANEL, true);
             ams_item->SetBackgroundColour(StateColor::darkModeColorFor(AMS_CONTROL_DEF_LIB_BK_COLOUR));
-            m_sizer_ams_stack->Add(ams_item, 0, wxALIGN_CENTER_HORIZONTAL | wxBOTTOM, FromDIP(8));
+            (right ? col_right : col_left)->Add(ams_item, 0, wxEXPAND, 0);
+            (right ? items_right : items_left).push_back(ams_item);
+            (right ? height_right : height_left) += ams_item->GetBestSize().y;
             m_ams_item_list[info.ams_id] = ams_item;
         }
+        int col_width = 0;
+        for (auto item : items_left)
+            col_width = std::max(col_width, item->GetBestSize().x);
+        for (auto item : items_right)
+            col_width = std::max(col_width, item->GetBestSize().x);
+        col_width += AMS_STACK_BRANCH_GAP;
+        col_left->SetMinSize(wxSize(col_width, -1));
+        col_right->SetMinSize(wxSize(col_width, -1));
+        m_stack_spine = new AMSStackSpine(m_panel_ams_stack);
+        m_stack_spine->set_extruder(m_extruder);
+        m_sizer_ams_stack->Add(col_left, 0, wxEXPAND, 0);
+        m_sizer_ams_stack->Add(m_stack_spine, 0, wxEXPAND, 0);
+        m_sizer_ams_stack->Add(col_right, 0, wxEXPAND, 0);
+        m_stack_spine->set_columns(items_left, items_right);
+        set_stack_printer(printer_type);
         m_panel_ams_stack->Layout();
         m_panel_ams_stack->Fit();
         m_panel_prv_left->Hide();
         m_panel_prv_right->Hide();
-        if (!m_ext_info.empty()) {
-            single_info.push_back(m_ext_info[0]);
-            m_item_ids[MAIN_EXTRUDER_ID].push_back(single_info[0].ams_id);
-            AddAms(single_info, series_name, printer_type, AMSPanelPos::RIGHT_PANEL);
-            m_simplebook_ams_right->Show();
-            m_simplebook_ams_right->SetSelection(0);
-        }
+        m_simplebook_ams_right->Hide();
         m_current_show_ams_left = m_item_ids[DEPUTY_EXTRUDER_ID][0];
         m_current_show_ams_right = m_item_ids[MAIN_EXTRUDER_ID].size() > 0 ? m_item_ids[MAIN_EXTRUDER_ID][0] : "";
         m_current_ams = "";
@@ -785,6 +884,9 @@ void AMSControl::CreateAmsSingleNozzle(const std::string &series_name, const std
         m_extruder->OnAmsLoading(false, MAIN_EXTRUDER_ID);
         m_amswin->Layout();
         m_amswin->Fit();
+        SetMinSize(m_amswin->GetBestSize());
+        SetSize(m_amswin->GetBestSize());
+        relayout_ancestors();
         return;
     }
 
@@ -1030,8 +1132,10 @@ void AMSControl::UpdateAms(const std::string   &series_name,
             }else{
                 CreateAmsSingleNozzle(series_name, printer_type);
             }
-            SetSize(wxSize(FromDIP(578), -1));
-            SetMinSize(wxSize(FromDIP(578), -1));
+            if (!m_stack_mode) {
+                SetSize(wxSize(FromDIP(578), -1));
+                SetMinSize(wxSize(FromDIP(578), -1));
+            }
             Layout();
         }
         // update cans
@@ -1105,6 +1209,9 @@ void AMSControl::UpdateAms(const std::string   &series_name,
     if (m_extruder->updateNozzleNum(m_total_ext_count, series_name))
     {
         m_amswin->Layout();
+        if (m_stack_spine)
+            m_stack_spine->Refresh();
+        m_stack_tube->Refresh();
     }
 
     /*update switch status*/
@@ -1672,6 +1779,11 @@ void AMSControl::SetAmsStep(std::string ams_id, std::string canid, AMSPassRoadTy
     }
 
     AMSPanelPos pos = left ? AMSPanelPos::LEFT_PANEL : AMSPanelPos::RIGHT_PANEL;
+
+    if (m_stack_mode) {
+        const bool active = step != AMSPassRoadSTEP::AMS_ROAD_STEP_NONE && can_index >= 0 && can_index < (int) info.cans.size();
+        update_stack_pass(ams_id, active ? info.cans[can_index].material_colour : wxNullColour);
+    }
 
     if (step == AMSPassRoadSTEP::AMS_ROAD_STEP_NONE) {
         //cans->SetAmsStep(canid, type, AMSPassRoadSTEP::AMS_ROAD_STEP_NONE);

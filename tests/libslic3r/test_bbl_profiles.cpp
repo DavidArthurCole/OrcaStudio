@@ -132,10 +132,10 @@ BblBundleLoad &bbl_load() {
         load.base_bundle.load_vendor_configs_from_json(
             std::string(PROFILES_DIR), PresetBundle::ORCA_FILAMENT_LIBRARY,
             PresetBundle::LoadSystem, ForwardCompatibilitySubstitutionRule::Disable);
-        const auto result = load.bundle.load_vendor_configs_from_json(
+        auto result = load.bundle.load_vendor_configs_from_json(
             std::string(PROFILES_DIR), "BBL", PresetBundle::LoadSystem,
             ForwardCompatibilitySubstitutionRule::Disable, &load.base_bundle);
-        load.substitutions = result.first;
+        load.substitutions = std::move(result.first);
         load.presets_loaded = result.second;
         initialized = true;
     }

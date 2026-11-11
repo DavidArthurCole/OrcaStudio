@@ -982,6 +982,7 @@ void GUI_App::post_init()
                 bool        sys_preset  = app_config->get("sync_system_preset") == "true";
                 this->preset_updater->sync(http_url, language, network_ver, sys_preset ? preset_bundle : nullptr);
             }
+            this->preset_updater->sync_bbl_profiles(get_http_url(app_config->get_country_code()));
 
             const auto cloud_provider = get_printer_cloud_provider();
             if (is_user_login(cloud_provider) && !app_config->get_stealth_mode()) {
@@ -1205,7 +1206,7 @@ std::string GUI_App::get_plugin_url(std::string name, std::string country_code)
         curr_version = BAMBU_NETWORK_AGENT_VERSION_LEGACY;
     } else if (name == "plugins" && app_config) {
         std::string user_version = app_config->get_network_plugin_version();
-        curr_version = user_version.empty() ? get_latest_network_version() : user_version;
+        curr_version = (user_version.empty() || !is_supported_network_version(user_version)) ? get_latest_network_version() : user_version;
     } else {
         curr_version = get_latest_network_version();
     }
@@ -2330,7 +2331,7 @@ bool GUI_App::check_networking_version()
         studio_ver = BAMBU_NETWORK_AGENT_VERSION_LEGACY;
     } else if (app_config) {
         const std::string user_version = app_config->get_network_plugin_version();
-        studio_ver = user_version.empty() ? get_latest_network_version() : user_version;
+        studio_ver = (user_version.empty() || !is_supported_network_version(user_version)) ? get_latest_network_version() : user_version;
     } else {
         studio_ver = get_latest_network_version();
     }
@@ -4347,7 +4348,7 @@ bool GUI_App::on_init_network(bool try_backup)
                 if (app_config && !loaded_version.empty() && loaded_version != "00.00.00.00") {
                     const std::string configured_version = app_config->get_network_plugin_version();
                     const std::string loaded_series = network_plugin_series(loaded_version);
-                    if (network_plugin_series(configured_version) != loaded_series) {
+                    if (network_plugin_series(configured_version) != loaded_series && is_supported_network_version(loaded_version)) {
                         const std::string synced = is_series_managed_version(loaded_version) ? loaded_series : loaded_version;
                         BOOST_LOG_TRIVIAL(info) << __FUNCTION__ << ": syncing config version from " << configured_version
                                                 << " to loaded " << loaded_version << " (stored as " << synced << ")";

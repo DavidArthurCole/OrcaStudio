@@ -167,6 +167,12 @@ enum FilamentStepType {
 #define AMS_EXTRUDER_SINGLE_NOZZLE_XP_SIZE wxSize(FromDIP(25), FromDIP(36))
 #define AMS_BODY_SIZE wxSize(FromDIP(36), FromDIP(55))
 #define AMS_DOWN_ROAD_SIZE wxSize(FromDIP(566), FromDIP(10))
+#define AMS_STACK_ITEM_WIDTH FromDIP(120)
+#define AMS_STACK_BRANCH_GAP FromDIP(30)
+#define AMS_STACK_COLLECTOR_INSET FromDIP(18)
+#define AMS_STACK_BOX_INSET FromDIP(8)
+#define AMS_CAN_LIB_H_SIZE wxSize(FromDIP(168), FromDIP(40))
+#define AMS_STACK_SPINE_WIDTH FromDIP(28)
 
 #define AMS_HUMIDITY_SIZE wxSize(FromDIP(93), FromDIP(26))
 #define AMS_HUMIDITY_NO_PERCENT_SIZE wxSize(FromDIP(60), FromDIP(26))
@@ -450,6 +456,8 @@ public:
     void has_ams(bool hams) {m_has_vams = hams; Refresh();};
     void no_ams_mode(bool mode) {m_none_ams_mode = mode; Refresh();};
     bool updateNozzleNum(int nozzle_num, const std::string& series_name = string());
+    void set_compact(bool compact);
+    bool m_compact = false;
 
     bool            m_none_ams_mode{true};
     bool            m_has_vams{false};
@@ -508,8 +516,15 @@ public:
     void         set_view_only(bool view_only) { if (m_view_only != view_only) { m_view_only = view_only; Refresh(); } }
     void         msw_rescale();
     void         on_pass_road(bool pass);
+    void         set_horizontal(bool full_on_right);
 
 protected:
+    bool m_horizontal{ false };
+    bool m_full_on_right{ false };
+    wxString m_full_name;
+    void update_full_name();
+    void render_horizontal_lib(wxDC &dc);
+    void render_horizontal_text(wxDC &dc);
     wxStaticBitmap *m_edit_bitmp       = {nullptr};
     wxStaticBitmap *m_edit_bitmp_light = {nullptr};
     ScalableBitmap  m_bitmap_editable;
@@ -798,8 +813,10 @@ Description:AmsItem
 class AmsItem : public wxWindow
 {
 public:
-    AmsItem(wxWindow *parent, AMSinfo info, AMSModel model, AMSPanelPos pos);
+    AmsItem(wxWindow *parent, AMSinfo info, AMSModel model, AMSPanelPos pos, bool vertical = false);
     ~AmsItem();
+    void     RenderStackRoad(wxDC &dc, wxSize size);
+    int      stack_join_y() const;
 
     void     Update(AMSinfo info);
     void     create(wxWindow *parent);
@@ -873,6 +890,42 @@ private:
     wxBoxSizer *    sizer_can_right = {nullptr};
     AMSExtImage*    m_ext_image = { nullptr };      //the ext image upon the ext ams
     AMSExtText* m_ext_text = { nullptr };       //the ext text upon the ext ams
+    bool            m_vertical = false;
+};
+
+class AMSStackSpine : public wxWindow
+{
+public:
+    AMSStackSpine(wxWindow *parent);
+    void set_columns(const std::vector<AmsItem *> &left, const std::vector<AmsItem *> &right);
+    void set_active(AmsItem *item, const wxColour &col);
+    void set_extruder(AMSextruder *extruder) { m_extruder = extruder; }
+    void msw_rescale();
+
+private:
+    void paintEvent(wxPaintEvent &evt);
+    void doRender(wxDC &dc);
+
+    std::vector<AmsItem *> m_left;
+    std::vector<AmsItem *> m_right;
+    AmsItem *m_active = nullptr;
+    AMSextruder *m_extruder = nullptr;
+    wxColour m_pass;
+};
+
+class AMSStackTube : public wxWindow
+{
+public:
+    AMSStackTube(wxWindow *parent);
+    void set_colour(const wxColour &col);
+    void set_extruder(AMSextruder *extruder) { m_extruder = extruder; }
+    void msw_rescale();
+
+private:
+    void paintEvent(wxPaintEvent &evt);
+
+    AMSextruder *m_extruder = nullptr;
+    wxColour m_pass;
 };
 
 wxDECLARE_EVENT(EVT_AMS_EXTRUSION_CALI, wxCommandEvent);

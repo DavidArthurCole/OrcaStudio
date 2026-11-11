@@ -231,6 +231,7 @@ struct PresetUpdater::priv
 	void parse_version_string(const std::string& body) const;
     void sync_resources(std::string http_url, std::map<std::string, Resource> &resources, bool check_patch = false, std::string current_version="", std::string changelog_file="", bool linux_transport = false);
     void sync_vendor_config(const std::string& vendor_id);
+    void sync_bbl_profiles(std::string http_url);
     void sync_tooltip(std::string http_url, std::string language);
     void sync_plugins(std::string http_url, std::string plugin_version);
     void sync_printer_config(std::string http_url);
@@ -782,6 +783,44 @@ void PresetUpdater::priv::sync_vendor_config(const std::string& vendor_id)
     });
 }
 
+void PresetUpdater::priv::sync_bbl_profiles(std::string http_url)
+{
+    const std::string vendor = "BBL";
+    const fs::path cache_profile_path = cache_path / "profiles";
+    const Semver app = Semver(std::string(SLIC3R_VERSION));
+    const std::string query_version = (boost::format("%1$02d.%2$02d.00.00") % app.maj() % app.min()).str();
+    Semver installed = get_version_from_json((vendor_path / (vendor + ".json")).string());
+    Semver current = (installed.maj() == app.maj() && installed.min() == app.min()) ? installed : Semver(query_version);
+    const fs::path cached_json = cache_profile_path / (vendor + ".json");
+    if (fs::exists(cached_json) && fs::exists(cache_profile_path / vendor)) {
+        Semver cached = get_version_from_json(cached_json.string());
+        if (cached.maj() == app.maj() && cached.min() == app.min() && current < cached)
+            current = cached;
+    }
+    std::string vendor_key = vendor;
+    boost::to_lower(vendor_key);
+    std::map<std::string, Resource> resources{
+        {"slicer/settings/" + vendor_key, {query_version, "", "", false, cache_profile_path.string(), {vendor, vendor + ".json", vendor + ".changelog"}}}
+    };
+    try {
+        sync_resources(http_url, resources, false, current.to_string(), vendor + ".changelog");
+    } catch (std::exception &e) {
+        BOOST_LOG_TRIVIAL(warning) << format("[Orca Updater] sync_bbl_profiles: %1%", e.what());
+        return;
+    }
+    if (cancel)
+        return;
+    if (!fs::exists(cached_json) || !fs::exists(cache_profile_path / vendor))
+        return;
+    const Semver cached = get_version_from_json(cached_json.string());
+    if (cached.maj() != app.maj() || cached.min() != app.min() || !(installed < cached))
+        return;
+    BOOST_LOG_TRIVIAL(info) << "[Orca Updater] Bambu profiles " << cached.to_string() << " cached, installing over " << installed.to_string();
+    GUI::wxGetApp().CallAfter([] {
+        GUI::wxGetApp().preset_updater->install_cached_updates();
+    });
+}
+
 void PresetUpdater::priv::sync_tooltip(std::string http_url, std::string language)
 {
     try {
@@ -1103,8 +1142,10 @@ void PresetUpdater::priv::check_installed_vendor_profiles() const
                         Semver vendor_ver = get_version_from_json(path_in_vendor.string());
 
                         bool version_match = ((resource_ver.maj() == vendor_ver.maj()) && (resource_ver.min() == vendor_ver.min()));
+                        const Semver app_ver = Semver(std::string(SLIC3R_VERSION));
+                        const bool cloud_newer = resource_ver < vendor_ver && vendor_ver.maj() == app_ver.maj() && vendor_ver.min() == app_ver.min();
 
-                        if (!version_match || (vendor_ver < resource_ver)) {
+                        if ((!version_match && !cloud_newer) || (vendor_ver < resource_ver)) {
                             BOOST_LOG_TRIVIAL(info) << "[Orca Updater]:found vendor "<<vendor_name<<" newer version "<<resource_ver.to_string() <<" from resource, old version "<<vendor_ver.to_string();
                             bundles.insert(vendor_name);
                         }
@@ -1393,6 +1434,18 @@ void PresetUpdater::sync(std::string http_url, std::string language, std::string
 	});
 }
 
+void PresetUpdater::sync_bbl_profiles(std::string http_url)
+{
+    std::lock_guard<std::mutex> lock(p->vendor_check_mutex);
+    p->vendor_check_threads.emplace_back([this, http_url]() {
+        try {
+            this->p->sync_bbl_profiles(http_url);
+        } catch (const std::exception& e) {
+            BOOST_LOG_TRIVIAL(error) << "[Orca Updater] Bambu profile sync failed: " << e.what();
+        }
+    });
+}
+
 void PresetUpdater::check_vendor_update(const std::string& vendor_id)
 {
     if (!p->enabled_config_update) return;
@@ -1523,6 +1576,30 @@ PresetUpdater::UpdateResult PresetUpdater::config_update(const Semver& old_slic3
     }
 
 	return R_NOOP;
+}
+
+PresetUpdater::UpdateResult PresetUpdater::install_cached_updates() const
+{
+    auto updates = p->get_config_updates(Semver());
+    if (updates.updates.empty())
+        return R_NOOP;
+    std::vector<std::string> bundles;
+    for (auto &update : updates.updates) {
+        update.forced_update = true;
+        if (!update.is_directory)
+            bundles.push_back(update.vendor);
+    }
+    if (!p->perform_updates(std::move(updates)) || !reload_configs_update_gui()) {
+        BOOST_LOG_TRIVIAL(warning) << "[Orca Updater] installing cached profiles failed";
+        return R_ALL_CANCELED;
+    }
+    for (const auto &b : bundles) {
+        Semver cur_ver = GUI::wxGetApp().preset_bundle->get_vendor_profile_version(b);
+        GUI::wxGetApp().plater()->get_notification_manager()->push_notification(GUI::NotificationType::PresetUpdateFinished,
+            GUI::NotificationManager::NotificationLevel::ImportantNotificationLevel,
+            _u8L("Configuration package: ") + b + _u8L(" updated to ") + cur_ver.to_string());
+    }
+    return R_UPDATE_INSTALLED;
 }
 
 //BBS: add json related logic

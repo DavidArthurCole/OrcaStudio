@@ -102,6 +102,8 @@ MethodManifestEntry{"bambu_network_get_print_queue_model_profile", "bambu_networ
 MethodManifestEntry{"bambu_network_upload_print_queue_content", "bambu_network_upload_print_queue_content", "network", "not-implemented", "none", "02.08.04 print queue export; no forwarder or host method"},
 MethodManifestEntry{"bambu_network_download_print_queue_config", "bambu_network_download_print_queue_config", "network", "not-implemented", "none", "02.08.04 print queue export; no forwarder or host method"},
 MethodManifestEntry{"bambu_network_start_print_queue_task", "bambu_network_start_print_queue_task", "network", "not-implemented", "none", "02.08.04 print queue export; no forwarder or host method"},
+MethodManifestEntry{"bambu_network_get_minors_decisions", "bambu_network_get_minors_decisions", "network", "not-implemented", "none", "02.09.01 minors export; no forwarder or host method"},
+MethodManifestEntry{"bambu_network_get_child_registration_key", "bambu_network_get_child_registration_key", "network", "not-implemented", "none", "02.09.01 minors export; no forwarder or host method"},
 MethodManifestEntry{"bambu_network_get_printer_firmware", "bambu_network_get_printer_firmware", "network", "implemented", "stable", "http code/body out params routed"},
 MethodManifestEntry{"bambu_network_get_task_plate_index", "bambu_network_get_task_plate_index", "network", "implemented", "stable", "plate index out param routed"},
 MethodManifestEntry{"bambu_network_get_user_info", "bambu_network_get_user_info", "network", "implemented", "stable", "identifier out param routed"},

@@ -910,6 +910,8 @@ bool AMSextruder::updateNozzleNum(int nozzle_num, const string& series_name)
         m_right_extruder->setShowState(false);
         m_bitmap_sizer->Add(m_left_extruder, 0, wxALIGN_LEFT | wxALIGN_TOP, 0);
         m_bitmap_sizer->Add(m_right_extruder, 0, wxLEFT | wxALIGN_TOP, FromDIP(3));
+        if (m_compact)
+            m_right_extruder->Hide();
     }
 
     SetSizer(m_bitmap_sizer);
@@ -917,6 +919,15 @@ bool AMSextruder::updateNozzleNum(int nozzle_num, const string& series_name)
     Refresh();
 
     return true;
+}
+
+void AMSextruder::set_compact(bool compact)
+{
+    m_compact = compact;
+    if (m_right_extruder && m_nozzle_num < 2)
+        m_right_extruder->Show(!compact);
+    InvalidateBestSize();
+    Layout();
 }
 
 void AMSextruder::msw_rescale()
@@ -1010,6 +1021,13 @@ void AMSLib::on_left_down(wxMouseEvent &evt)
         auto pos  = evt.GetPosition();
         if (m_info.material_state == AMSCanType::AMS_CAN_TYPE_THIRDBRAND || m_info.material_state == AMSCanType::AMS_CAN_TYPE_BRAND ||
             m_info.material_state == AMSCanType::AMS_CAN_TYPE_VIRTUAL) {
+
+            if (m_horizontal) {
+                const bool on_icon = m_full_on_right ? pos.x <= FromDIP(24) : pos.x >= size.x - FromDIP(24);
+                if (on_icon && m_selected)
+                    post_event(wxCommandEvent(m_info.material_state == AMSCanType::AMS_CAN_TYPE_VIRTUAL ? EVT_VAMS_ON_FILAMENT_EDIT : EVT_AMS_ON_FILAMENT_EDIT));
+                return;
+            }
 
             auto left = FromDIP(10);
             auto right = size.x - FromDIP(10);
@@ -1160,8 +1178,162 @@ void AMSLib::render_lite_text(wxDC& dc)
     }
 }
 
+void AMSLib::set_horizontal(bool full_on_right)
+{
+    m_horizontal = true;
+    m_full_on_right = full_on_right;
+    SetSize(AMS_CAN_LIB_H_SIZE);
+    SetMinSize(AMS_CAN_LIB_H_SIZE);
+    SetMaxSize(AMS_CAN_LIB_H_SIZE);
+    update_full_name();
+    Refresh();
+}
+
+void AMSLib::update_full_name()
+{
+    m_full_name = m_info.material_name;
+    if (!m_horizontal || m_info.filament_id.empty() || !wxGetApp().preset_bundle)
+        return;
+    const Preset *match = nullptr;
+    for (const Preset &preset : wxGetApp().preset_bundle->filaments) {
+        if (preset.filament_id != m_info.filament_id || preset.alias.empty())
+            continue;
+        if (!match || preset.is_system)
+            match = &preset;
+        if (match->is_system)
+            break;
+    }
+    if (!match)
+        return;
+    std::string name = match->alias;
+    std::string vendor;
+    if (auto opt = match->config.option<ConfigOptionStrings>("filament_vendor"); opt && !opt->values.empty())
+        vendor = opt->values[0];
+    for (const std::string &prefix : {vendor, std::string("Bambu Lab"), std::string("Bambu"), std::string("Generic")}) {
+        if (!prefix.empty() && name.size() > prefix.size() + 1 && name.compare(0, prefix.size(), prefix) == 0 && name[prefix.size()] == ' ') {
+            name = name.substr(prefix.size() + 1);
+            break;
+        }
+    }
+    m_full_name = from_u8(name);
+}
+
+void AMSLib::render_horizontal_lib(wxDC &dc)
+{
+    const wxSize size = GetSize();
+    wxColour colour = m_info.material_colour;
+    change_the_opacity(colour);
+    const int pad = FromDIP(2);
+    const int inner_w = size.x - 2 * pad;
+    const int inner_h = size.y - 2 * pad;
+
+    dc.SetPen(*wxTRANSPARENT_PEN);
+    dc.SetBrush(wxBrush(AMS_CONTROL_DEF_LIB_BK_COLOUR));
+    dc.DrawRoundedRectangle(pad, pad, inner_w, inner_h, m_radius);
+
+    const bool is_ext = m_ams_model == AMSModel::EXT_AMS;
+    const int remain = is_ext ? 100 : std::clamp(m_info.material_remain, 0, 100);
+    int fill_w = inner_w * remain / 100;
+    if (remain > 0)
+        fill_w = std::max(fill_w, FromDIP(3));
+    const int fill_x = m_full_on_right ? pad + inner_w - fill_w : pad;
+    const bool has_colour = colour.Alpha() != 0 && m_info.material_state != AMSCanType::AMS_CAN_TYPE_EMPTY && m_info.material_state != AMSCanType::AMS_CAN_TYPE_NONE;
+    if (fill_w > 0 && has_colour) {
+        if (m_info.material_cols.size() > 1) {
+            const int band = inner_h / (int) m_info.material_cols.size();
+            for (size_t i = 0; i < m_info.material_cols.size(); ++i) {
+                dc.SetBrush(wxBrush(m_info.material_cols[i]));
+                const int h = i + 1 == m_info.material_cols.size() ? inner_h - band * (int) i : band;
+                dc.DrawRectangle(fill_x, pad + band * (int) i, fill_w, h);
+            }
+        } else {
+            dc.SetBrush(wxBrush(colour));
+            dc.DrawRoundedRectangle(fill_x, pad, fill_w, inner_h, m_radius - 1);
+        }
+        if (colour.Red() > 238 && colour.Green() > 238 && colour.Blue() > 238) {
+            const int step = FromDIP(7);
+            dc.SetClippingRegion(fill_x + 1, pad + 1, fill_w - 2, inner_h - 2);
+            dc.SetPen(wxPen(wxColour(130, 129, 128, 70), 1, wxPENSTYLE_SOLID));
+            for (int x = fill_x - inner_h; x < fill_x + fill_w; x += step) {
+                dc.DrawLine(x, pad, x + inner_h, pad + inner_h);
+                dc.DrawLine(x, pad + inner_h, x + inner_h, pad);
+            }
+            dc.DestroyClippingRegion();
+            if (remain < 100) {
+                const int level_x = m_full_on_right ? fill_x : fill_x + fill_w;
+                dc.SetPen(wxPen(wxColour(130, 129, 128), 1, wxPENSTYLE_SOLID));
+                dc.DrawLine(level_x, pad, level_x, pad + inner_h);
+            }
+            dc.SetPen(*wxTRANSPARENT_PEN);
+        }
+    }
+
+    dc.SetPen(wxPen(wxColour(130, 130, 128), 1, wxPENSTYLE_SOLID));
+    dc.SetBrush(*wxTRANSPARENT_BRUSH);
+    dc.DrawRoundedRectangle(FromDIP(1), FromDIP(1), size.x - FromDIP(2), size.y - FromDIP(2), m_radius);
+    if (m_selected || m_hover) {
+        dc.SetPen(wxPen(AMS_CONTROL_BRAND_COLOUR, 3, wxPENSTYLE_SOLID));
+        dc.DrawRoundedRectangle(FromDIP(1), FromDIP(1), size.x - FromDIP(2), size.y - FromDIP(2), m_radius);
+    }
+
+    if (m_disable_mode || m_info.material_state == AMSCanType::AMS_CAN_TYPE_EMPTY || m_info.material_state == AMSCanType::AMS_CAN_TYPE_NONE)
+        return;
+    const bool dark_behind = has_colour && remain > 85 && colour.GetLuminance() < 0.6;
+    const bool editable = !m_view_only && (m_info.material_state == AMSCanType::AMS_CAN_TYPE_THIRDBRAND || m_info.material_state == AMSCanType::AMS_CAN_TYPE_VIRTUAL);
+    ScalableBitmap &icon = editable ? (dark_behind ? m_bitmap_editable_light : m_bitmap_editable) : (dark_behind ? m_bitmap_readonly_light : m_bitmap_readonly);
+    const wxSize icon_size = icon.GetBmpSize();
+    const int icon_x = m_full_on_right ? FromDIP(6) : size.x - FromDIP(6) - icon_size.x;
+    dc.DrawBitmap(icon.bmp(), icon_x, (size.y - icon_size.y) / 2);
+}
+
+void AMSLib::render_horizontal_text(wxDC &dc)
+{
+    const wxSize size = GetSize();
+    wxColour colour = m_info.material_colour;
+    change_the_opacity(colour);
+    const bool is_ext = m_ams_model == AMSModel::EXT_AMS;
+    const int remain = is_ext ? 100 : m_info.material_remain;
+    const bool empty = m_info.material_state == AMSCanType::AMS_CAN_TYPE_EMPTY;
+    const bool on_fill = !empty && remain >= 50 && colour.Alpha() != 0;
+    dc.SetTextForeground(on_fill && colour.GetLuminance() < 0.6 ? AMS_CONTROL_WHITE_COLOUR : AMS_CONTROL_GRAY800);
+
+    wxString label;
+    if (empty)
+        label = _L("Empty");
+    else if (m_info.material_state == AMSCanType::AMS_CAN_TYPE_THIRDBRAND || m_info.material_state == AMSCanType::AMS_CAN_TYPE_BRAND || m_info.material_state == AMSCanType::AMS_CAN_TYPE_VIRTUAL)
+        label = m_full_name.empty() ? wxString("?") : m_full_name;
+    else
+        return;
+
+    const int icon_room = FromDIP(24);
+    const int edge = FromDIP(6);
+    const int left = m_full_on_right ? icon_room : edge;
+    const int right = m_full_on_right ? size.x - edge : size.x - icon_room;
+    const int room = right - left;
+
+    dc.SetFont(::Label::Body_13);
+    if (dc.GetTextExtent(label).x > room)
+        label = wxControl::Ellipsize(label, dc, wxELLIPSIZE_END, room);
+    const wxSize name_size = dc.GetTextExtent(label);
+
+    const bool show_k = !empty && m_show_kn && m_obj && !m_info.material_name.empty() && m_info.cali_idx != -1 && abs(m_info.k) >= EPSILON;
+    if (!show_k) {
+        dc.DrawText(label, left + (room - name_size.x) / 2, (size.y - name_size.y) / 2);
+        return;
+    }
+    dc.DrawText(label, left + (room - name_size.x) / 2, size.y / 2 - name_size.y + FromDIP(1));
+    const wxString str_k = wxString::Format("K %1.3f", m_info.k);
+    dc.SetFont(::Label::Body_10);
+    const wxSize k_size = dc.GetTextExtent(str_k);
+    dc.DrawText(str_k, left + (room - k_size.x) / 2, size.y / 2 + FromDIP(1));
+}
+
 void AMSLib::render_generic_text(wxDC &dc)
 {
+    if (m_horizontal) {
+        render_horizontal_text(dc);
+        return;
+    }
     bool show_k_value = true;
     if (m_info.material_name.empty()) {
         show_k_value = false;
@@ -1440,6 +1612,10 @@ void AMSLib::render_lite_lib(wxDC& dc)
 
 void AMSLib::render_generic_lib(wxDC &dc)
 {
+    if (m_horizontal) {
+        render_horizontal_lib(dc);
+        return;
+    }
     wxSize size = GetSize();
     auto   tmp_lib_colour = m_info.material_colour;
     change_the_opacity(tmp_lib_colour);
@@ -1741,9 +1917,12 @@ void AMSLib::Update(Caninfo info, std::string ams_idx, bool refresh)
         transparent_changed = true;
     }
 
+    const bool name_changed = m_info.filament_id != info.filament_id || m_info.material_name != info.material_name;
     m_info = info;
     m_ams_id = ams_idx;
     m_slot_id = info.can_id;
+    if (name_changed || m_full_name.empty())
+        update_full_name();
     if (refresh) Refresh();
 }
 
@@ -3084,7 +3263,7 @@ void AMSHumidity::doRender(wxDC& dc)
 
         if (m_amsinfo.support_drying())
         {
-            pot.x += FromDIP(2);// spacing
+            pot.x += FromDIP(6);// spacing
 
             // vertical line
             dc.SetPen(wxPen(wxColour(194, 194, 194)));
@@ -3124,7 +3303,7 @@ void AMSHumidity::msw_rescale() {
 /*************************************************
 Description:AmsItem
 **************************************************/
-AmsItem::AmsItem(wxWindow *parent,AMSinfo info,  AMSModel model, AMSPanelPos pos)
+AmsItem::AmsItem(wxWindow *parent,AMSinfo info,  AMSModel model, AMSPanelPos pos, bool vertical)
 {
     m_bitmap_extra_framework = ScalableBitmap(this, "ams_extra_framework_mid_new", 134);
 
@@ -3132,8 +3311,11 @@ AmsItem::AmsItem(wxWindow *parent,AMSinfo info,  AMSModel model, AMSPanelPos pos
     m_ams_model = model;
     m_info      = info;
     m_panel_pos = pos;
+    m_vertical = vertical;
 
-    if (m_ams_model == AMSModel::GENERIC_AMS){
+    if (m_vertical) {
+        wxWindow::Create(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxFULL_REPAINT_ON_RESIZE);
+    } else if (m_ams_model == AMSModel::GENERIC_AMS || (m_ams_model == AMSModel::N3F_AMS && m_info.cans.size() == GENERIC_AMS_SLOT_NUM)){
         wxWindow::Create(parent, wxID_ANY, wxDefaultPosition, AMS_CANS_WINDOW_SIZE);
         SetSize(AMS_CANS_WINDOW_SIZE);
         SetMinSize(AMS_CANS_WINDOW_SIZE);
@@ -3159,6 +3341,30 @@ AmsItem::~AmsItem()
 void AmsItem::create(wxWindow *parent)
 {
     Freeze();
+    if (m_vertical) {
+        const bool right_side = m_panel_pos == AMSPanelPos::RIGHT_PANEL;
+        sizer_item = new wxBoxSizer(wxVERTICAL);
+        sizer_can = new wxBoxSizer(wxVERTICAL);
+        sizer_item->AddSpacer(FromDIP(4));
+        if (m_ams_model == AMSModel::GENERIC_AMS || m_ams_model == AMSModel::N3F_AMS || m_ams_model == AMSModel::N3S_AMS) {
+            m_humidity = new AMSHumidity(this, wxID_ANY, m_info);
+            sizer_item->Add(m_humidity, 0, wxALIGN_CENTER_HORIZONTAL | (right_side ? wxLEFT : wxRIGHT), AMS_STACK_BOX_INSET);
+        } else {
+            sizer_item->AddSpacer(FromDIP(8));
+        }
+        for (const auto &can : m_info.cans) {
+            AddCan(can, m_can_count, m_info.cans.size(), sizer_can);
+            m_can_count++;
+        }
+        sizer_item->Add(sizer_can, 0, right_side ? (wxALIGN_RIGHT | wxRIGHT) : wxLEFT, FromDIP(10));
+        sizer_item->AddSpacer(FromDIP(14));
+        SetSizer(sizer_item);
+        SetMinSize(wxSize(AMS_STACK_ITEM_WIDTH, -1));
+        Layout();
+        Fit();
+        Thaw();
+        return;
+    }
     //if (m_ams_model == AMSModel::GENERIC_AMS)
     if (m_ams_model != AMSModel::AMS_LITE) {
         sizer_can = new wxBoxSizer(wxHORIZONTAL);
@@ -3219,15 +3425,17 @@ void AmsItem::AddCan(Caninfo caninfo, int canindex, int maxcan, wxBoxSizer* size
 {
     auto        amscan = new wxWindow(this, wxID_ANY);
 
-    amscan->SetSize(wxSize(FromDIP(52), FromDIP(109)));
-    amscan->SetMinSize(wxSize(FromDIP(52), FromDIP(109)));
+    if (!m_vertical) {
+        amscan->SetSize(wxSize(FromDIP(52), FromDIP(109)));
+        amscan->SetMinSize(wxSize(FromDIP(52), FromDIP(109)));
+    }
 
     amscan->SetBackgroundColour(StateColor::darkModeColorFor(AMS_CONTROL_DEF_LIB_BK_COLOUR));
     //amscan->SetBackgroundColour(wxTRANSPARENT);
 
-    wxBoxSizer* m_sizer_ams = new wxBoxSizer(wxVERTICAL);
+    wxBoxSizer* m_sizer_ams = new wxBoxSizer(m_vertical ? wxHORIZONTAL : wxVERTICAL);
 
-    AMSrefresh* m_panel_refresh;
+    AMSrefresh* m_panel_refresh = nullptr;
     if (m_ams_model != AMSModel::EXT_AMS)
     {
         m_panel_refresh = new AMSrefresh(amscan, m_info.ams_id, m_can_count, caninfo);
@@ -3278,7 +3486,19 @@ void AmsItem::AddCan(Caninfo caninfo, int canindex, int maxcan, wxBoxSizer* size
 
     //auto m_panel_road = new AMSRoad(amscan, wxID_ANY, caninfo, canindex, maxcan, wxDefaultPosition, AMS_CAN_ROAD_SIZE);
 
-    if (m_ams_model != AMSModel::AMS_LITE && m_ams_model != AMSModel::EXT_AMS) {
+    if (m_vertical) {
+        wxWindow *label = m_ams_model == AMSModel::EXT_AMS ? static_cast<wxWindow *>(m_ext_text) : static_cast<wxWindow *>(m_panel_refresh);
+        m_panel_lib->m_ams_model = m_ams_model;
+        m_panel_lib->set_horizontal(m_panel_pos != AMSPanelPos::RIGHT_PANEL);
+        if (m_panel_pos == AMSPanelPos::RIGHT_PANEL) {
+            m_sizer_ams->Add(m_panel_lib, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+            m_sizer_ams->Add(label, 0, wxALIGN_CENTER_VERTICAL, 0);
+        } else {
+            m_sizer_ams->Add(label, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(6));
+            m_sizer_ams->Add(m_panel_lib, 0, wxALIGN_CENTER_VERTICAL, 0);
+        }
+    }
+    else if (m_ams_model != AMSModel::AMS_LITE && m_ams_model != AMSModel::EXT_AMS) {
         m_sizer_ams->Add(0, 0, 0, wxALIGN_CENTER_HORIZONTAL, 0);
         m_sizer_ams->Add(m_panel_refresh, 0, wxALIGN_CENTER_HORIZONTAL | wxDOWN, FromDIP(4));
         m_sizer_ams->Add(m_panel_lib, 0, wxALIGN_CENTER_HORIZONTAL, 0);
@@ -3298,7 +3518,10 @@ void AmsItem::AddCan(Caninfo caninfo, int canindex, int maxcan, wxBoxSizer* size
     amscan->Layout();
     amscan->Fit();
 
-    sizer->Add(amscan, 0, wxUP | wxLEFT | wxRIGHT, FromDIP(5));
+    if (m_vertical)
+        sizer->Add(amscan, 0, wxTOP, FromDIP(4));
+    else
+        sizer->Add(amscan, 0, wxUP | wxLEFT | wxRIGHT, FromDIP(5));
 
     m_can_lib_list[caninfo.can_id] = m_panel_lib;
     //m_can_road_list[caninfo.can_id] = m_panel_road;
@@ -3648,6 +3871,11 @@ void AmsItem::doRender(wxDC& dc)
 {
     wxSize     size = GetSize();
 
+    if (m_vertical) {
+        RenderStackRoad(dc, size);
+        return;
+    }
+
     //road for extra
     if (m_ams_model == AMSModel::AMS_LITE) {
         dc.DrawBitmap(m_bitmap_extra_framework.bmp(), (size.x - m_bitmap_extra_framework.GetBmpSize().x) / 2, (size.y - m_bitmap_extra_framework.GetBmpSize().y) / 2 - FromDIP(4));
@@ -3761,6 +3989,206 @@ void AmsItem::RenderLiteRoad(wxDC& dc, wxSize size) {
         }
     }
     catch (...) {}
+}
+
+int AmsItem::stack_join_y() const
+{
+    int top = -1;
+    int bottom = -1;
+    for (const auto &[id, lib] : m_can_lib_list) {
+        if (!lib || !lib->IsShown())
+            continue;
+        const int y = lib->GetParent()->GetPosition().y + lib->GetPosition().y + lib->GetSize().y / 2;
+        if (top < 0 || y < top)
+            top = y;
+        if (y > bottom)
+            bottom = y;
+    }
+    return top < 0 ? -1 : (top + bottom) / 2;
+}
+
+void AmsItem::RenderStackRoad(wxDC &dc, wxSize size)
+{
+    const bool right_side = m_panel_pos == AMSPanelPos::RIGHT_PANEL;
+    const int join_y = stack_join_y();
+    if (join_y < 0)
+        return;
+    const int edge_x = right_side ? 0 : size.x;
+    const int collector_x = right_side ? AMS_STACK_COLLECTOR_INSET : size.x - AMS_STACK_COLLECTOR_INSET;
+    int top = join_y;
+    int bottom = join_y;
+    int active_x = -1;
+    int active_y = -1;
+    wxColour active_colour;
+    int lib_top = -1;
+    int lib_bottom = -1;
+    for (const auto &[id, lib] : m_can_lib_list) {
+        if (!lib || !lib->IsShown())
+            continue;
+        const int y = lib->GetParent()->GetPosition().y + lib->GetPosition().y;
+        if (lib_top < 0 || y < lib_top)
+            lib_top = y;
+        lib_bottom = std::max(lib_bottom, y + lib->GetSize().y);
+    }
+    const int box_top = m_humidity ? m_humidity->GetPosition().y + m_humidity->GetSize().y / 2 : lib_top - FromDIP(8);
+    const int box_x = right_side ? AMS_STACK_BOX_INSET : FromDIP(1);
+    dc.SetBrush(*wxTRANSPARENT_BRUSH);
+    dc.SetPen(wxPen(AMS_CONTROL_GRAY500, 1, wxPENSTYLE_SOLID));
+    dc.DrawRoundedRectangle(box_x, box_top, size.x - AMS_STACK_BOX_INSET - FromDIP(1), lib_bottom + FromDIP(10) - box_top, FromDIP(6));
+    dc.SetPen(wxPen(AMS_CONTROL_GRAY500, 2, wxPENSTYLE_SOLID));
+    for (const auto &[id, lib] : m_can_lib_list) {
+        if (!lib || !lib->IsShown())
+            continue;
+        const int lib_x = lib->GetParent()->GetPosition().x + lib->GetPosition().x;
+        const int y = lib->GetParent()->GetPosition().y + lib->GetPosition().y + lib->GetSize().y / 2;
+        const int inner_x = right_side ? lib_x : lib_x + lib->GetSize().x;
+        dc.DrawLine(inner_x, y, collector_x, y);
+        top = std::min(top, y);
+        bottom = std::max(bottom, y);
+        const int can_idx = atoi(id.c_str());
+        if (id == m_road_canid && can_idx >= 0 && can_idx < (int) m_info.cans.size()) {
+            active_x = inner_x;
+            active_y = y;
+            active_colour = m_info.cans[can_idx].material_colour;
+        }
+    }
+    dc.DrawLine(collector_x, top, collector_x, bottom);
+    dc.DrawLine(collector_x, join_y, edge_x, join_y);
+    if (active_y < 0)
+        return;
+    dc.SetPen(wxPen(active_colour, 4, wxPENSTYLE_SOLID));
+    dc.DrawLine(active_x, active_y, collector_x, active_y);
+    dc.DrawLine(collector_x, active_y, collector_x, join_y);
+    dc.DrawLine(collector_x, join_y, edge_x, join_y);
+}
+
+static void stack_trunk_span(const wxWindow *self, const AMSextruder *extruder, int base_width, int &x, int &width)
+{
+    width = base_width;
+    x = (self->GetSize().x - width) / 2;
+    const wxWindow *anchor = extruder ? extruder->m_left_extruder : nullptr;
+    if (!anchor || !anchor->IsShownOnScreen())
+        return;
+    const int anchor_w = anchor->GetSize().x;
+    width = base_width + ((anchor_w - base_width) & 1);
+    x = anchor->GetScreenPosition().x - self->GetScreenPosition().x + (anchor_w - width) / 2;
+}
+
+AMSStackSpine::AMSStackSpine(wxWindow *parent) : wxWindow(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxFULL_REPAINT_ON_RESIZE)
+{
+    SetDoubleBuffered(true);
+    SetBackgroundColour(StateColor::darkModeColorFor(AMS_CONTROL_DEF_LIB_BK_COLOUR));
+    SetMinSize(wxSize(AMS_STACK_SPINE_WIDTH, -1));
+    Bind(wxEVT_PAINT, &AMSStackSpine::paintEvent, this);
+}
+
+void AMSStackSpine::set_columns(const std::vector<AmsItem *> &left, const std::vector<AmsItem *> &right)
+{
+    m_left = left;
+    m_right = right;
+    m_active = nullptr;
+    Refresh();
+}
+
+void AMSStackSpine::set_active(AmsItem *item, const wxColour &col)
+{
+    m_active = item;
+    m_pass = col;
+    Refresh();
+}
+
+AMSStackTube::AMSStackTube(wxWindow *parent) : wxWindow(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxFULL_REPAINT_ON_RESIZE)
+{
+    SetBackgroundColour(StateColor::darkModeColorFor(*wxWHITE));
+    SetMinSize(wxSize(FromDIP(12), FromDIP(16)));
+    Bind(wxEVT_PAINT, &AMSStackTube::paintEvent, this);
+}
+
+void AMSStackTube::set_colour(const wxColour &col)
+{
+    m_pass = col;
+    Refresh();
+}
+
+void AMSStackTube::msw_rescale()
+{
+    SetMinSize(wxSize(FromDIP(12), FromDIP(16)));
+    Refresh();
+}
+
+void AMSStackTube::paintEvent(wxPaintEvent &evt)
+{
+    wxPaintDC dc(this);
+    int x = 0;
+    int width = 0;
+    stack_trunk_span(this, m_extruder, m_pass.IsOk() ? FromDIP(4) : FromDIP(2), x, width);
+    dc.SetPen(*wxTRANSPARENT_PEN);
+    dc.SetBrush(wxBrush(m_pass.IsOk() ? m_pass : wxColour(AMS_CONTROL_GRAY500)));
+    dc.DrawRectangle(x, 0, width, GetSize().y);
+}
+
+void AMSStackSpine::msw_rescale()
+{
+    SetMinSize(wxSize(AMS_STACK_SPINE_WIDTH, -1));
+    Refresh();
+}
+
+void AMSStackSpine::paintEvent(wxPaintEvent &evt)
+{
+    wxPaintDC dc(this);
+#ifdef __WXMSW__
+    wxGCDC gdc(dc);
+    doRender(gdc);
+#else
+    doRender(dc);
+#endif
+}
+
+void AMSStackSpine::doRender(wxDC &dc)
+{
+    const wxSize size = GetSize();
+    int trunk_x = 0;
+    int trunk_w = 0;
+    stack_trunk_span(this, m_extruder, FromDIP(2), trunk_x, trunk_w);
+    const int mid = trunk_x + trunk_w / 2;
+    const int off = GetPosition().y;
+    int top = -1;
+    dc.SetBrush(*wxTRANSPARENT_BRUSH);
+    dc.SetPen(wxPen(AMS_CONTROL_GRAY500, 2, wxPENSTYLE_SOLID));
+    auto join_y = [off](const AmsItem *item) {
+        const int y = item->stack_join_y();
+        return y < 0 ? -1 : item->GetPosition().y + y - off;
+    };
+    auto draw_side = [&](const std::vector<AmsItem *> &items, bool right_side) {
+        for (auto item : items) {
+            const int y = join_y(item);
+            if (y < 0)
+                continue;
+            dc.DrawLine(right_side ? mid : 0, y, right_side ? size.x : mid, y);
+            if (top < 0 || y < top)
+                top = y;
+        }
+    };
+    draw_side(m_left, false);
+    draw_side(m_right, true);
+    if (top < 0)
+        return;
+    dc.SetPen(*wxTRANSPARENT_PEN);
+    dc.SetBrush(wxBrush(wxColour(AMS_CONTROL_GRAY500)));
+    dc.DrawRectangle(trunk_x, top - 1, trunk_w, size.y - top + 1);
+
+    if (!m_active || !m_pass.IsOk())
+        return;
+    const int y = join_y(m_active);
+    if (y < 0)
+        return;
+    const bool right_side = std::find(m_right.begin(), m_right.end(), m_active) != m_right.end();
+    dc.SetPen(wxPen(m_pass, 4, wxPENSTYLE_SOLID));
+    dc.DrawLine(right_side ? size.x : 0, y, mid, y);
+    stack_trunk_span(this, m_extruder, FromDIP(4), trunk_x, trunk_w);
+    dc.SetPen(*wxTRANSPARENT_PEN);
+    dc.SetBrush(wxBrush(m_pass));
+    dc.DrawRectangle(trunk_x, y - 2, trunk_w, size.y - y + 2);
 }
 
 void AmsItem::StopRridLoading(wxString canid)

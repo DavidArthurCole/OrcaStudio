@@ -130,7 +130,7 @@ def merge_gcode(ours, flat):
     return merged, changed
 
 
-def merge_index(ours, theirs, template_names):
+def merge_index(ours, theirs, template_names, skipped=frozenset()):
     merged = dict(ours)
     merged["version"] = theirs["version"]
     added = []
@@ -139,7 +139,7 @@ def merge_index(ours, theirs, template_names):
         existing_names = {entry["name"] for entry in merged_list}
         for entry in theirs.get(list_key, []):
             name = entry["name"]
-            if name in existing_names or name in template_names:
+            if name in existing_names or name in template_names or name in skipped:
                 continue
             merged_list.append(entry)
             existing_names.add(name)
@@ -275,10 +275,26 @@ def sync(tag, repo, archive, dry_run):
             if key in final:
                 gcode_texts[f"{filename}:{key}"] = final[key]
 
+    skipped_files = set()
+    for filename in added_machines:
+        refs = {f"{filename}:{key}": gcode_texts[f"{filename}:{key}"] for key in GCODE_KEYS if f"{filename}:{key}" in gcode_texts}
+        if validate({filename: new_docs[filename]}, refs, repo, {filename}):
+            skipped_files.add(filename)
+    skipped_models = {new_docs[f].get("name", "") for f in skipped_files if new_docs[f].get("type") == "machine_model"}
+    for filename in added_machines:
+        if new_docs[filename].get("printer_model") in skipped_models:
+            skipped_files.add(filename)
+    skipped_names = {new_docs[f].get("name", "") for f in skipped_files}
+    for filename in skipped_files:
+        new_docs.pop(filename)
+        for key in GCODE_KEYS:
+            gcode_texts.pop(f"{filename}:{key}", None)
+    added_machines = [f for f in added_machines if f not in skipped_files]
+
     ours_bbl_path = repo / BBL_JSON_REL
     ours_bbl = load_doc(ours_bbl_path.read_bytes())
     theirs_bbl = load_doc(files[BBL_JSON_REL])
-    merged_bbl, added_models = merge_index(ours_bbl, theirs_bbl, template_names)
+    merged_bbl, added_models = merge_index(ours_bbl, theirs_bbl, template_names, skipped_names)
 
     offenders = validate(new_docs, gcode_texts, repo, set(added_machines))
     if offenders:
@@ -319,6 +335,8 @@ def sync(tag, repo, archive, dry_run):
                     printers_added += 1
 
     print(f"archive: {archive}")
+    for filename in sorted(skipped_files):
+        print(f"machine skipped, needs unsupported options: {filename}")
     for filename in added_machines:
         print(f"machine added: {filename}")
     for filename, changed, old_date, new_date in gcode_changes:

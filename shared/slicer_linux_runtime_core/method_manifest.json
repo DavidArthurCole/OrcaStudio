@@ -776,6 +776,22 @@
     "notes": "02.08.04 print queue export; no forwarder or host method"
   },
   {
+    "symbol": "bambu_network_get_minors_decisions",
+    "exported_name": "bambu_network_get_minors_decisions",
+    "area": "network",
+    "status": "not-implemented",
+    "stability": "none",
+    "notes": "02.09.01 minors export; no forwarder or host method"
+  },
+  {
+    "symbol": "bambu_network_get_child_registration_key",
+    "exported_name": "bambu_network_get_child_registration_key",
+    "area": "network",
+    "status": "not-implemented",
+    "stability": "none",
+    "notes": "02.09.01 minors export; no forwarder or host method"
+  },
+  {
     "symbol": "bambu_network_get_printer_firmware",
     "exported_name": "bambu_network_get_printer_firmware",
     "area": "network",

@@ -160,18 +160,22 @@ MediaPlayCtrl::MediaPlayCtrl(wxWindow *parent, BBLMediaCtrl *media_ctrl, const w
     sizer->Add(m_label_status, 0, wxALIGN_CENTER_VERTICAL | wxRIGHT, FromDIP(25));
     SetSizer(sizer);
 
+    const bool dark = wxGetApp().dark_mode();
     m_idle_panel = new wxPanel(parent, wxID_ANY);
-    m_idle_panel->SetBackgroundColour(wxColour(0x26, 0x2E, 0x30));
+    m_idle_panel->SetBackgroundColour(dark ? wxColour(0x1E, 0x1E, 0x21) : wxColour(0x2B, 0x2B, 0x2E));
     m_idle_panel->SetMinSize(wxSize(-1, FromDIP(120)));
-    m_idle_play = new Button(m_idle_panel, _L("Start live view"), "media_play", wxBORDER_NONE, 24);
-    m_idle_play->SetStyle(ButtonStyle::Confirm, ButtonType::Choice);
+    m_idle_play = new Button(m_idle_panel, "", "media_play", wxBORDER_NONE, 48);
+    m_idle_play->SetBackgroundColor(StateColor(std::pair(m_idle_panel->GetBackgroundColour(), (int) StateColor::Normal)));
+    m_idle_play->SetBorderColor(StateColor(std::pair(m_idle_panel->GetBackgroundColour(), (int) StateColor::Normal)));
     m_idle_play->SetCanFocus(false);
+    m_idle_play->SetToolTip(_L("Start live view"));
     m_idle_play->Bind(wxEVT_COMMAND_BUTTON_CLICKED, [this](auto &e) { TogglePlay(); });
     m_idle_status = new Label(m_idle_panel, "");
-    m_idle_status->SetForegroundColour(wxColour(0xC8, 0xCD, 0xCF));
+    m_idle_status->SetBackgroundColour(m_idle_panel->GetBackgroundColour());
+    m_idle_status->SetForegroundColour(wxColour(0xB4, 0xB8, 0xBA));
     wxBoxSizer *idle_sizer = new wxBoxSizer(wxVERTICAL);
     idle_sizer->AddStretchSpacer(1);
-    idle_sizer->Add(m_idle_play, 0, wxALIGN_CENTER_HORIZONTAL | wxALL, FromDIP(8));
+    idle_sizer->Add(m_idle_play, 0, wxALIGN_CENTER_HORIZONTAL | wxALL, FromDIP(6));
     idle_sizer->Add(m_idle_status, 0, wxALIGN_CENTER_HORIZONTAL | wxLEFT | wxRIGHT, FromDIP(24));
     idle_sizer->AddStretchSpacer(1);
     m_idle_panel->SetSizer(idle_sizer);
